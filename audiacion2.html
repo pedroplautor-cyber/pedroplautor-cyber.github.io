@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Entrenador de Audición</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #111;
+    color: #eee;
+    text-align: center;
+  }
+  h1 { margin: 10px; }
+  #controls { margin: 10px; }
+  #game {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+    user-select: none;
+  }
+  #scale {
+    display: flex;
+    flex-direction: column-reverse;
+    border: 1px solid #444;
+  }
+  .step {
+    width: 90px;
+    height: 26px;
+    border-top: 1px solid #333;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+  }
+  .step.zero { background: #222; font-weight: bold; }
+  .step:hover { background: #333; }
+  #info { margin-left: 20px; max-width: 260px; }
+  button, select {
+    padding: 8px;
+    font-size: 14px;
+    margin: 5px;
+    cursor: pointer;
+  }
+  #feedback {
+    font-size: 18px;
+    margin-top: 10px;
+    min-height: 24px;
+  }
+  #gestureBox {
+    margin-top: 10px;
+    border: 2px dashed #555;
+    padding: 20px;
+    font-size: 14px;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<h1>🎧 Entrenamiento de Audición</h1>
+
+<div id="controls">
+  <button onclick="startGame()">▶️ Comenzar</button>
+  <button onclick="repeatNotes()">🔁 Repetir</button>
+  <label>
+    Modo entrada:
+    <select id="inputMode" onchange="updateMode()">
+      <option value="click">Click</option>
+      <option value="gesture">Gestos</option>
+    </select>
+  </label>
+</div>
+
+<div id="game">
+  <div id="scale"></div>
+  <div id="info">
+    <p id="round">Pulsa “Comenzar”</p>
+    <p>Indica cuántos <b>semitonos</b><br>
+       está la segunda nota</p>
+    <div id="feedback"></div>
+    <div id="gestureBox">
+      Arrastra hacia arriba / abajo<br>y suelta
+    </div>
+  </div>
+</div>
+
+<div id="result"></div>
+
+<script>
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+const TOTAL_ROUNDS = 10;
+const MIN = -12;
+const MAX = 12;
+
+let round = 0;
+let score = 0;
+let correctAnswer = 0;
+let inputMode = "click";
+
+// Para repetir
+let lastBaseFreq = null;
+let lastInterval = null;
+
+// -------- UI: escala --------
+const scaleDiv = document.getElementById("scale");
+for (let i = MIN; i <= MAX; i++) {
+  const div = document.createElement("div");
+  div.className = "step" + (i === 0 ? " zero" : "");
+  div.textContent = i > 0 ? `+${i}` : i;
+  div.onclick = () => {
+    if (inputMode === "click") chooseAnswer(i);
+  };
+  scaleDiv.appendChild(div);
+}
+
+// -------- Audio: piano sintético --------
+function playPiano(freq, duration = 1.2) {
+  const now = audioCtx.currentTime;
+  const output = audioCtx.createGain();
+  output.connect(audioCtx.destination);
+
+  // Envolvente tipo piano
+  output.gain.setValueAtTime(0.0001, now);
+  output.gain.exponentialRampToValueAtTime(0.8, now + 0.02); // ataque
+  output.gain.exponentialRampToValueAtTime(0.25, now + 0.25); // decay
+  output.gain.exponentialRampToValueAtTime(0.0001, now + duration); // release
+
+  // Armónicos (fundamental + parciales)
+  const harmonics = [
+    { mul: 1,  gain: 1.0 },
+    { mul: 2,  gain: 0.35 },
+    { mul: 3,  gain: 0.20 },
+    { mul: 4,  gain: 0.12 },
+    { mul: 6,  gain: 0.08 }
+  ];
+
+  harmonics.forEach(h => {
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = freq * h.mul;
+    g.gain.value = h.gain;
+    osc.connect(g);
+    g.connect(output);
+    osc.start(now);
+    osc.stop(now + duration + 0.05);
+  });
+}
+
+function semitoneToFreq(base, semitones) {
+  return base * Math.pow(2, semitones / 12);
+}
+
+// -------- Juego --------
+function playPair(baseFreq, interval) {
+  playPiano(baseFreq);
+  setTimeout(() => {
+    playPiano(semitoneToFreq(baseFreq, interval));
+  }, 1200);
+}
+
+function nextRound() {
+  if (round >= TOTAL_ROUNDS) {
+    document.getElementById("result").textContent =
+      `🎉 Puntuación final: ${score} / ${TOTAL_ROUNDS}`;
+    return;
+  }
+
+  round++;
+  document.getElementById("round").textContent =
+    `Ronda ${round} de ${TOTAL_ROUNDS}`;
+  document.getElementById("feedback").textContent = "";
+
+  lastBaseFreq = 220 + Math.random() * 440;
+  correctAnswer = Math.floor(Math.random() * (MAX - MIN + 1)) + MIN;
+  lastInterval = correctAnswer;
+
+  playPair(lastBaseFreq, lastInterval);
+}
+
+function chooseAnswer(value) {
+  if (round === 0) return;
+
+  const feedback = document.getElementById("feedback");
+  if (value === correctAnswer) {
+    score++;
+    feedback.textContent = "✔️ Correcto";
+    feedback.style.color = "#6f6";
+  } else {
+    feedback.textContent = `❌ Incorrecto (era ${correctAnswer})`;
+    feedback.style.color = "#f66";
+  }
+  setTimeout(nextRound, 900);
+}
+
+function startGame() {
+  round = 0;
+  score = 0;
+  document.getElementById("result").textContent = "";
+  nextRound();
+}
+
+function repeatNotes() {
+  if (lastBaseFreq !== null && lastInterval !== null) {
+    playPair(lastBaseFreq, lastInterval);
+  }
+}
+
+function updateMode() {
+  inputMode = document.getElementById("inputMode").value;
+  document.getElementById("gestureBox").style.display =
+    inputMode === "gesture" ? "block" : "none";
+}
+
+// -------- Gestos --------
+let startY = null;
+const gestureBox = document.getElementById("gestureBox");
+
+gestureBox.addEventListener("pointerdown", e => {
+  startY = e.clientY;
+});
+
+gestureBox.addEventListener("pointerup", e => {
+  if (startY === null) return;
+  const delta = startY - e.clientY;
+  const range = MAX - MIN;
+  let value = Math.round((delta / 150) * range);
+  value = Math.max(MIN, Math.min(MAX, value));
+  chooseAnswer(value);
+  startY = null;
+});
+</script>
+
+</body>
+</html>
+
