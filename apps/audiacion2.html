@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Entrenador de Audición</title>
+
+<style>
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: Arial, sans-serif;
+    background: #111;
+    color: #eee;
+    text-align: center;
+    margin: 0;
+    padding: 10px;
+  }
+
+  h1 {
+    margin: 10px 0;
+    font-size: 1.4rem;
+  }
+
+  #controls {
+    margin: 10px 0;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  button, select {
+    padding: 10px 14px;
+    font-size: 15px;
+    cursor: pointer;
+    border-radius: 6px;
+  }
+
+  #game {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 16px;
+    margin-top: 10px;
+    user-select: none;
+    flex-wrap: wrap;
+  }
+
+  #scale {
+    display: flex;
+    flex-direction: column-reverse;
+    border: 1px solid #444;
+    width: 80px;
+  }
+
+  .step {
+    height: 28px;
+    border-top: 1px solid #333;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    touch-action: manipulation;
+  }
+
+  .step.zero {
+    background: #222;
+    font-weight: bold;
+  }
+
+  .step:hover {
+    background: #333;
+  }
+
+  #info {
+    max-width: 320px;
+    width: 100%;
+  }
+
+  #feedback {
+    font-size: 18px;
+    margin-top: 10px;
+    min-height: 24px;
+  }
+
+  #state {
+    margin-top: 6px;
+    font-size: 13px;
+    color: #aaa;
+    
+  }
+
+  #gestureBox {
+    margin-top: 10px;
+    border: 2px dashed #555;
+    padding: 16px;
+    font-size: 14px;
+    display: none;
+  }
+
+  canvas {
+    margin-top: 10px;
+    width: 100%;
+    max-width: 320px;
+    height: auto;
+    background: #0d0d0d;
+    border: 1px solid #333;
+  }
+
+  #stateSprite {
+    width: 32px;
+    height: 32px;
+    margin: 100px auto 0;
+    background-image: url("img/pianista.png");
+    background-repeat: no-repeat;
+    background-position: 0 0;
+    image-rendering: pixelated;
+    scale: 8
+  }
+
+  #footerImage {
+    margin-top: 16px;
+    width: 90px;
+    opacity: 0.8;
+  }
+
+  /* 📱 Ajustes específicos móvil */
+  @media (max-width: 768px) {
+    #game {
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #scale {
+      flex-direction: row;
+      width: 100%;
+      max-width: 360px;
+      overflow-x: auto;
+    }
+
+    .step {
+      min-width: 44px;
+      height: 44px;
+      font-size: 14px;
+      border-top: none;
+      border-left: 1px solid #333;
+    }
+
+    .step:first-child {
+      border-left: none;
+    }
+  }
+</style>
+</head>
+<body>
+
+<h1>🎧 Entrenamiento de Audición</h1>
+
+<div id="controls">
+  <button onclick="startGame()">▶️ Comenzar</button>
+  <button onclick="repeatNotes()">🔁 Repetir</button>
+  <label>
+    Modo entrada:
+    <select id="inputMode" onchange="updateMode()">
+      <option value="click">Click</option>
+      <option value="gesture">Gestos</option>
+    </select>
+  </label>
+</div>
+
+<div id="game">
+  <div id="scale"></div>
+
+  <div id="info">
+    <p id="round">Pulsa “Comenzar”</p>
+    <p id="state"></p>
+
+    <p>
+      Indica cuántos <b>semitonos</b><br>
+      está la segunda nota
+    </p>
+
+    <div id="feedback"></div>
+
+    <div id="gestureBox">
+      Arrastra hacia arriba / abajo<br>y suelta
+    </div>
+
+    <canvas id="chart" width="260" height="140"></canvas>
+
+    <div id="result"></div>
+
+    <div id="stateSprite"></div>
+
+    <!--
+    <img id="footerImage"
+      src="https://png.pngtree.com/png-clipart/20190925/original/pngtree-character-playing-piano-back-music-instrument-png-image_4877597.jpg"
+      width="120">
+    -->
+  </div>
+</div>
+
+<script>
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+const TOTAL_ROUNDS = 10;
+const MIN = -12;
+const MAX = 12;
+
+// -------- Estados --------
+const GameState = {
+  IDLE: "Antes de empezar",
+  PLAYING_FIRST: "Tocando primera nota",
+  PLAYING_SECOND: "Tocando segunda nota",
+  WAITING_PLAYER: "Esperando al jugador",
+  RESULT_OK: "Resultado OK",
+  RESULT_NOK: "Resultado NOK",
+  FINISHED: "Fin del juego"
+};
+
+const SPRITE_SIZE = 32;
+
+const stateToFrame = {
+  [GameState.IDLE]: 0,
+  [GameState.PLAYING_FIRST]: 1,
+  [GameState.PLAYING_SECOND]: 2,
+  [GameState.WAITING_PLAYER]: 3,
+  [GameState.RESULT_OK]: 4,
+  [GameState.RESULT_NOK]: 5,
+  [GameState.FINISHED]: 6
+};
+
+
+let gameState = GameState.IDLE;
+
+function old_setState(state) {
+  gameState = state;
+  document.getElementById("state").textContent = `Estado: ${state}`;
+}
+
+
+function setState(state) {
+  gameState = state;
+  document.getElementById("state").textContent = `Estado: ${state}`;
+
+  const frame = stateToFrame[state] ?? 0;
+  const sprite = document.getElementById("stateSprite");
+  //sprite.style.backgroundPosition = `-${frame * SPRITE_SIZE}px 0`;
+}
+
+// -------- Variables juego --------
+let round = 0;
+let score = 0;
+let correctAnswer = 0;
+let inputMode = "click";
+
+let lastBaseFreq = null;
+let lastInterval = null;
+
+// -------- Datos gráfica --------
+const correctData = [];
+const userData = [];
+
+// -------- Escala --------
+const scaleDiv = document.getElementById("scale");
+for (let i = MIN; i <= MAX; i++) {
+  const div = document.createElement("div");
+  div.className = "step" + (i === 0 ? " zero" : "");
+  div.textContent = i > 0 ? `+${i}` : i;
+  div.onclick = () => {
+    if (inputMode === "click") chooseAnswer(i);
+  };
+  scaleDiv.appendChild(div);
+}
+
+// -------- Audio --------
+function playPiano(freq, duration = 1.2) {
+  const now = audioCtx.currentTime;
+  const output = audioCtx.createGain();
+  output.connect(audioCtx.destination);
+
+  output.gain.setValueAtTime(0.0001, now);
+  output.gain.exponentialRampToValueAtTime(0.8, now + 0.02);
+  output.gain.exponentialRampToValueAtTime(0.25, now + 0.25);
+  output.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+  const harmonics = [
+    { mul: 1, gain: 1.0 },
+    { mul: 2, gain: 0.35 },
+    { mul: 3, gain: 0.2 },
+    { mul: 4, gain: 0.12 },
+    { mul: 6, gain: 0.08 }
+  ];
+
+  harmonics.forEach(h => {
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = freq * h.mul;
+    g.gain.value = h.gain;
+    osc.connect(g);
+    g.connect(output);
+    osc.start(now);
+    osc.stop(now + duration + 0.05);
+  });
+}
+
+function semitoneToFreq(base, semitones) {
+  return base * Math.pow(2, semitones / 12);
+}
+
+function playPair(base, interval) {
+  setState(GameState.PLAYING_FIRST);
+  playPiano(base);
+
+  setTimeout(() => {
+    setState(GameState.PLAYING_SECOND);
+    playPiano(semitoneToFreq(base, interval));
+
+    setTimeout(() => {
+      setState(GameState.WAITING_PLAYER);
+    }, 1200);
+
+  }, 1200);
+}
+
+// -------- Gráfica --------
+const canvas = document.getElementById("chart");
+const ctx = canvas.getContext("2d");
+
+function drawChart() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const padding = 20;
+  const w = canvas.width - padding * 2;
+  const h = canvas.height - padding * 2;
+  const yRange = MAX - MIN;
+
+  ctx.strokeStyle = "#555";
+  ctx.beginPath();
+  ctx.moveTo(padding, padding);
+  ctx.lineTo(padding, padding + h);
+  ctx.lineTo(padding + w, padding + h);
+  ctx.stroke();
+
+  function drawLine(data, color) {
+    ctx.strokeStyle = color;
+    ctx.beginPath();
+    data.forEach((v, i) => {
+      const x = padding + (i / (TOTAL_ROUNDS - 1)) * w;
+      const y = padding + h - ((v - MIN) / yRange) * h;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+  }
+
+  drawLine(correctData, "#6f6");
+  drawLine(userData, "#6cf");
+}
+
+// -------- Juego --------
+function nextRound() {
+  if (round >= TOTAL_ROUNDS) {
+    setState(GameState.FINISHED);
+    document.getElementById("result").textContent =
+      `🎉 Puntuación final: ${score} / ${TOTAL_ROUNDS}`;
+    return;
+  }
+
+  round++;
+  document.getElementById("round").textContent =
+    `Ronda ${round} de ${TOTAL_ROUNDS}`;
+  document.getElementById("feedback").textContent = "";
+
+  lastBaseFreq = 220 + Math.random() * 440;
+  correctAnswer = Math.floor(Math.random() * (MAX - MIN + 1)) + MIN;
+  lastInterval = correctAnswer;
+
+  playPair(lastBaseFreq, lastInterval);
+}
+
+function chooseAnswer(value) {
+  if (gameState !== GameState.WAITING_PLAYER) return;
+
+  correctData.push(correctAnswer);
+  userData.push(value);
+  drawChart();
+
+  const feedback = document.getElementById("feedback");
+  if (value === correctAnswer) {
+    score++;
+    setState(GameState.RESULT_OK);
+    feedback.textContent = "✔️ Correcto";
+    feedback.style.color = "#6f6";
+  } else {
+    setState(GameState.RESULT_NOK);
+    feedback.textContent = `❌ Incorrecto (era ${correctAnswer})`;
+    feedback.style.color = "#f66";
+  }
+
+  setTimeout(nextRound, 900);
+}
+
+function startGame() {
+  round = 0;
+  score = 0;
+  correctData.length = userData.length = 0;
+  drawChart();
+  document.getElementById("result").textContent = "";
+  nextRound();
+}
+
+function repeatNotes() {
+  if (lastBaseFreq !== null && gameState !== GameState.FINISHED) {
+    playPair(lastBaseFreq, lastInterval);
+  }
+}
+
+function updateMode() {
+  inputMode = document.getElementById("inputMode").value;
+  document.getElementById("gestureBox").style.display =
+    inputMode === "gesture" ? "block" : "none";
+}
+
+// -------- Gestos --------
+let startY = null;
+const gestureBox = document.getElementById("gestureBox");
+
+gestureBox.addEventListener("pointerdown", e => startY = e.clientY);
+gestureBox.addEventListener("pointerup", e => {
+  if (startY === null) return;
+  const delta = startY - e.clientY;
+  const range = MAX - MIN;
+  let value = Math.round((delta / 150) * range);
+  value = Math.max(MIN, Math.min(MAX, value));
+  chooseAnswer(value);
+  startY = null;
+});
+
+// Inicial
+setState(GameState.IDLE);
+</script>
+
+</body>
+</html>

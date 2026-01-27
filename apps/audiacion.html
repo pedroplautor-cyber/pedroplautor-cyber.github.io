@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+  <title>Entrenador de Audición — Escala Vertical</title>
+  <style>
+    :root{
+      --bg:#0e0f1a;
+      --card:#141628;
+      --accent:#6d5bff;
+      --accent2:#46c9ff;
+      --muted:#b0b4c3;
+      --good:#2ee6a8;
+      --bad:#ff6b8a;
+      --shadow:0 10px 24px rgba(0,0,0,0.35);
+    }
+    html,body{
+      height:100%; margin:0;
+      font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      color:#eef2ff;
+      background:linear-gradient(180deg,#0a0b16,#111327);
+    }
+    .app{
+      height:100dvh; padding:12px; display:flex;
+      flex-direction:column; gap:14px; box-sizing:border-box;
+    }
+
+    header{
+      display:flex; justify-content:space-between; align-items:center;
+    }
+
+    h1{
+      font-size:17px; margin:0; letter-spacing:0.3px;
+      text-shadow:0 2px 8px rgba(0,0,0,0.6);
+    }
+
+    .controls{display:flex; gap:8px; align-items:center;}
+
+    button{
+      background:var(--accent);
+      border:none; color:white;
+      padding:8px 14px; border-radius:10px;
+      font-weight:600; box-shadow:var(--shadow);
+      transition:0.15s ease;
+    }
+    button:active{transform:scale(0.96);}
+    button.ghost{
+      background:transparent;
+      border:1px solid rgba(255,255,255,0.12);
+      backdrop-filter:blur(4px);
+      box-shadow:none;
+    }
+
+    .game{
+      flex:1; display:flex; gap:16px; align-items:stretch;
+    }
+
+    /* Barra vertical */
+    .bar-wrap{
+      width:85px; min-width:70px;
+      background:linear-gradient(180deg,#17192e,#101224);
+      border-radius:20px; padding:12px;
+      display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      box-shadow:var(--shadow);
+    }
+
+    .bar{
+      flex:1; width:30px;
+      border-radius:14px;
+      background:linear-gradient(180deg,#11131f,#0d0f18);
+      position:relative; overflow:hidden;
+      outline:none;
+    }
+
+    .bar::before{
+      content:''; position:absolute; inset:0;
+      background:linear-gradient(180deg,rgba(109,91,255,0.06),rgba(109,91,255,0.015));
+    }
+
+    .marker,.guess,.target{
+      position:absolute; left:50%; transform:translateX(-50%);
+      height:3px; border-radius:2px;
+    }
+    .marker{background:rgba(255,255,255,0.7); width:38px;}
+    .guess{background:var(--accent2); width:38px;}
+    .target{background:var(--good); width:44px;}
+
+    .info{
+      flex:1;
+      background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);
+      border-radius:16px;
+      padding:16px; display:flex; flex-direction:column;
+      gap:14px; box-shadow:var(--shadow);
+    }
+
+    .row{display:flex; justify-content:space-between; align-items:center;}
+    .big{font-size:22px; font-weight:700;}
+    .muted{color:var(--muted); font-size:13px;}
+    .score{font-size:30px; font-weight:800;}
+
+    .progress{
+      height:10px; background:rgba(255,255,255,0.05);
+      border-radius:10px; overflow:hidden;
+    }
+    .progress>i{
+      display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2));
+    }
+
+    .log{
+      flex:1; overflow:auto;
+      background:rgba(255,255,255,0.03);
+      padding:10px; border-radius:10px; font-size:13px;
+      box-shadow:inset 0 0 10px rgba(0,0,0,0.25);
+    }
+
+    footer{
+      display:flex; justify-content:space-between; align-items:center;
+    }
+    .small{font-size:12px; color:var(--muted);}
+
+    @media(max-width:420px){.bar-wrap{width:70px;} .bar{width:24px;}}
+
+    .note-tooltip {
+        position: absolute;
+        padding: 6px 10px;
+        background: rgba(0,0,0,0.8);
+        color: white;
+        border-radius: 6px;
+        font-size: 14px;
+        pointer-events: none;
+        transform: translate(-50%, -120%);
+        white-space: nowrap;
+        z-index: 1000;
+        }
+
+
+  </style>
+</head>
+<body>
+  <div id="noteTooltip" class="note-tooltip" style="display:none;"></div>
+  <div class="app" id="app">
+    <header>
+      <h1>🎧 Entrenador de Audición</h1>
+      <div class="controls">
+        <div class="small muted">Ronda <span id="round">0</span>/10</div>
+        <button id="play">Reproducir nota</button>
+        <button id="restart" class="ghost">Reiniciar</button>
+      </div>
+    </header>
+
+    <div class="game">
+      <div class="bar-wrap">
+        <div class="muted small">Agudo ↑</div>
+        <div id="bar" class="bar" role="slider" aria-orientation="vertical" tabindex="0"></div>
+        <div class="muted small">Grave ↓</div>
+      </div>
+
+      <div class="info">
+        <div class="row">
+          <div>
+            <div class="muted">Nota actual</div>
+            <div id="noteLabel" class="big">—</div>
+          </div>
+          <div>
+            <div class="muted">Puntuación</div>
+            <div id="scoreTotal" class="score">0</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="muted">Progreso</div>
+          <div class="progress"><i id="progBar" style="width:0%"></i></div>
+        </div>
+
+        <div class="log" id="log" aria-live="polite"></div>
+
+        <div class="row">
+          <div class="muted">Toca la barra según la altura que escuches.</div>
+          <button id="next" class="ghost">Siguiente</button>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <div class="small">10 notas por partida • Precisión en cents</div>
+      <div class="small">WebAudio</div>
+    </footer>
+  </div>
+
+  <script>
+    
+// --- Parámetros de la actividad ---
+const ROUNDS = 10
+const MIDI_MIN = 72; // C5
+const MIDI_MAX = 83; // B5
+const NOTE_LEN = 2.0 // segundos
+
+// --- Estado ---
+let audioCtx, masterGain
+let targetMidi = null
+let round = 0
+let totalScore = 0
+let answered = false
+
+// --- Elementos DOM ---
+const bar = document.getElementById('bar')
+const playBtn = document.getElementById('play')
+const nextBtn = document.getElementById('next')
+const restartBtn = document.getElementById('restart')
+const noteLabel = document.getElementById('noteLabel')
+const roundLabel = document.getElementById('round')
+const scoreTotal = document.getElementById('scoreTotal')
+const log = document.getElementById('log')
+const progBar = document.getElementById('progBar')
+
+function ensureAudio(){
+  if(!audioCtx){
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+    masterGain = audioCtx.createGain(); masterGain.gain.value = 0.12; masterGain.connect(audioCtx.destination)
+  }
+}
+
+function midiToFreq(m){
+  return 440 * Math.pow(2, (m - 69)/12)
+}
+function freqToMidi(f){
+  return 69 + 12*Math.log2(f/440)
+}
+
+function playFreq(f, dur=NOTE_LEN){
+  ensureAudio()
+  const o = audioCtx.createOscillator()
+  const g = audioCtx.createGain()
+  o.type = 'sine'
+  o.frequency.value = f
+  o.connect(g); g.connect(masterGain)
+  const now = audioCtx.currentTime
+  g.gain.setValueAtTime(0, now)
+  g.gain.linearRampToValueAtTime(1, now+0.01)
+  g.gain.exponentialRampToValueAtTime(0.0001, now + dur)
+  o.start(now); o.stop(now + dur + 0.02)
+}
+
+function randomTarget(){
+  const m = Math.floor(Math.random()*(MIDI_MAX - MIDI_MIN + 1)) + MIDI_MIN
+  return m
+}
+
+function startRound(){
+  round++
+  answered = false
+  targetMidi = randomTarget()
+  roundLabel.textContent = round
+  noteLabel.textContent = '—'
+  updateProgress()
+  // configure buttons
+  playBtn.disabled = false
+  nextBtn.disabled = true
+  // play the target sound for the user to hear
+  playTarget()
+}
+
+function playTarget(){
+  ensureAudio();
+  const f = midiToFreq(targetMidi)
+  // not revealing the note name until the user guesses
+  noteLabel.textContent = '—'
+  playFreq(f)
+}
+
+function midiToName(m){
+  const names = ['Do','Do♯','Re','Re♯','Mi','Fa','Fa♯','Sol','Sol♯','La','La♯','Si']
+  const n = Math.round(m) % 12
+  const oct = Math.floor(m/12) - 1
+  return names[n] + oct
+}
+
+function posToFreq(y){
+  // y: 0..1 from top(0) to bottom(1)
+  // we map top to MIDI_MAX, bottom to MIDI_MIN (higher pitch = top)
+  const ratio = 1 - y
+  // linear in MIDI space
+  const midi = MIDI_MIN + ratio*(MIDI_MAX - MIDI_MIN)
+  return midiToFreq(midi)
+}
+function posToMidi(y){
+  const ratio = 1 - y
+  return MIDI_MIN + ratio*(MIDI_MAX - MIDI_MIN)
+}
+
+function handleGuess(clientY){
+  if(round===0 || answered) return
+  const rect = bar.getBoundingClientRect()
+  let y = (clientY - rect.top) / rect.height
+  if(y<0) y=0; if(y>1) y=1
+  // compute guessed midi (float)
+  const guessedMidiFloat = posToMidi(y)
+  const guessedFreq = midiToFreq(guessedMidiFloat)
+  const targetFreq = midiToFreq(targetMidi)
+  // cents difference
+  const cents = 1200 * Math.log2(guessedFreq / targetFreq)
+  const absCents = Math.abs(cents)
+  const score = computeScore(absCents)
+  totalScore += score
+  answered = true
+  // show markers
+  placeMarker(y, 'guess')
+  // target position
+  const targetY = 1 - (targetMidi - MIDI_MIN)/(MIDI_MAX - MIDI_MIN)
+  placeMarker(targetY, 'target')
+  // reveal note name after guess
+  noteLabel.textContent = midiToName(targetMidi)
+  logResult(guessedMidiFloat, cents, score)
+  scoreTotal.textContent = totalScore
+  nextBtn.disabled = false
+  playBtn.disabled = false
+  updateProgress()
+}
+
+function computeScore(absCents){
+  // 100 pts for 0 cents, drop linearly to 0 at 500 cents (~4 semitones)
+  const s = Math.max(0, Math.round(100 * (1 - absCents / 500)))
+  return s
+}
+
+function placeMarker(yRatio, cls){
+  // remove existing of same class
+  const existing = bar.querySelector('.' + cls)
+  if(existing) existing.remove()
+  const el = document.createElement('div')
+  el.className = cls
+  el.style.top = (yRatio*100) + '%'
+  el.style.position = 'absolute'
+  el.style.left = '50%'
+  el.style.transform = 'translateX(-50%)'
+  if(cls === 'guess'){
+    el.style.width = '38px'
+    el.style.height = '3px'
+    el.style.background = 'linear-gradient(90deg,#46c9ff,#6d5bff)'
+    el.style.borderRadius = '2px'
+  } else if(cls === 'target'){
+    el.style.width = '44px'
+    el.style.height = '3px'
+    el.style.background = '#2ee6a8'
+    el.style.borderRadius = '2px'
+  }
+  bar.appendChild(el)
+}
+
+function logResult(guessedMidi, cents, score){
+  const el = document.createElement('div')
+  el.style.padding = '6px 0'
+  el.innerHTML = `<strong>Intento ${round}:</strong> diferencia ${Math.round(cents)} cents — puntuación ${score}`
+  log.prepend(el)
+}
+
+function updateProgress(){
+  progBar.style.width = Math.round((round/ROUNDS)*100) + '%'
+}
+
+// --- Events ---
+playBtn.addEventListener('click', ()=>{
+  if(!audioCtx) ensureAudio()
+  if(round===0) startRound()    // first play starts the game
+  // play again current target
+  if(targetMidi) playTarget()
+})
+
+restartBtn.addEventListener('click', ()=>{
+  round = 0; totalScore = 0; scoreTotal.textContent = '0'; roundLabel.textContent = '0'; progBar.style.width = '0%';
+  // remove markers
+  Array.from(bar.querySelectorAll('.guess,.target')).forEach(n=>n.remove())
+  log.innerHTML = ''
+  startRound()
+})
+
+nextBtn.addEventListener('click', ()=>{
+  if(round < ROUNDS){
+    Array.from(bar.querySelectorAll('.guess,.target')).forEach(n=>n.remove())
+    startRound()
+  } else {
+    // finish
+    showFinal()
+  }
+})
+
+// Click/touch handling on the bar
+function onBarPointer(e){
+  ensureAudio()
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY
+  handleGuess(clientY)
+  // play guessed tone as feedback
+  const rect = bar.getBoundingClientRect()
+  let y = (clientY - rect.top) / rect.height
+  if(y<0) y=0; if(y>1) y=1
+  const guessedMidi = posToMidi(y)
+  playFreq(midiToFreq(guessedMidi), 2)
+}
+
+bar.addEventListener('click', (e)=>{onBarPointer(e)})
+bar.addEventListener('touchstart', (e)=>{onBarPointer(e); e.preventDefault()},{passive:false})
+
+// Keyboard accessibility (Enter/Space)
+bar.addEventListener('keydown', (e)=>{
+  if(e.key==='Enter' || e.key===' '){
+    const rect = bar.getBoundingClientRect(); const y = rect.top + rect.height/2; handleGuess(y)
+  }
+})
+
+function showFinal(){
+  const avg = Math.round(totalScore/ROUNDS)
+  alert('Partida terminada. Puntuación total: '+totalScore+' — Media: '+avg)
+}
+
+// Initial UI state
+(function init(){
+  nextBtn.disabled = true
+  playBtn.disabled = false
+  round=0
+  totalScore=0
+  roundLabel.textContent = '0'
+  scoreTotal.textContent = '0'
+  progBar.style.width='0%'
+  log.innerHTML = '<div class="muted">Pulsa \"Reproducir nota\" para comenzar (necesario para habilitar audio en móvil).</div>'
+})()
+
+
+
+const tooltip = document.getElementById("noteTooltip");
+
+// Mostrar nota al mover el mouse
+bar.addEventListener("mousemove", (e) => {
+  const rect = bar.getBoundingClientRect();
+  const y = e.clientY - rect.top;
+  const percent = 1 - y / rect.height;
+
+  tooltip.style.left = `${e.pageX}px`;
+  tooltip.style.top = `${e.pageY}px`;
+
+  // Obtener nota de esa posición (mismo cálculo que usas para clic)
+  const midi = Math.round(MIDI_MIN + percent * (MIDI_MAX - MIDI_MIN));
+  const note = midiToNoteName(midi);
+
+  tooltip.textContent = note;
+  tooltip.style.display = "block";
+});
+
+// Ocultar tooltip al salir de la barra
+bar.addEventListener("mouseleave", () => {
+  tooltip.style.display = "none";
+});
+
+function midiToNoteName(m) {
+  const notas = ["do", "do♯", "re", "re♯", "mi", "fa", "fa♯", "sol", "sol♯", "la", "la♯", "si"];
+  const n = notas[m % 12];
+  const oct = Math.floor(m / 12) - 1;
+  return `${n}${oct}`;
+}
+    
+  </script>
+</body>
+</html>
