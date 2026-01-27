@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Juegos y utilidades</title>
+  <style>
+    /* Pixel-art vibe */
+    @font-face {
+      font-family: 'Pixel';
+      src: local('Press Start 2P'), local('Pixel');
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #1b1b1b;
+      color: #eaeaea;
+      font-family: 'Pixel', monospace;
+      image-rendering: pixelated;
+    }
+
+    header {
+      background: #111;
+      padding: 24px 16px;
+      text-align: center;
+      border-bottom: 4px solid #3cff00;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: 2px;
+      color: #3cff00;
+      text-shadow: 2px 2px #000;
+    }
+
+    main {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    li {
+      margin-bottom: 12px;
+    }
+
+    a {
+      display: block;
+      padding: 14px 12px;
+      background: #2a2a2a;
+      color: #ffffff;
+      text-decoration: none;
+      border: 3px solid #555;
+      box-shadow: 4px 4px 0 #000;
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+    }
+
+    a:hover {
+      transform: translate(2px, 2px);
+      box-shadow: 2px 2px 0 #000;
+      border-color: #3cff00;
+      color: #3cff00;
+    }
+
+    .tag {
+      display: inline-block;
+      margin-top: 6px;
+      font-size: 10px;
+      color: #aaa;
+    }
+
+    footer {
+      margin-top: 24px;
+      text-align: center;
+      font-size: 10px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>JUEGOS Y UTILIDADES</h1>
+  </header>
+
+  <main>
+    <ul>
+      <li>
+        <a href="apps/audiacion.html">
+          Entrenamiento de oido 1
+          <div class="tag">Juego · Plataforma</div>
+        </a>
+      </li>
+      <li>
+        <a href="apps/audiacion2.html">
+          Entrenamiento de Oido 2
+          <div class="tag">Juego · Arcade</div>
+        </a>
+      </li>
+      <li>
+        <a href="#">
+          Conversor de horas
+          <div class="tag">Utilidad</div>
+        </a>
+      </li>
+      <li>
+        <a href="#">
+          Visor de mapas
+          <div class="tag">Utilidad · Mapas</div>
+        </a>
+      </li>
+    </ul>
+
+    <footer>
+      © 2026 · Pixel vibes only
+    </footer>
+  </main>
+</body>
+</html>
