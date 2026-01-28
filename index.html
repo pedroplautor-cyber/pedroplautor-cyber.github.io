@@ -2,7 +2,12 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
+
+  <!-- CLAVE para móvil -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
   <title>Juegos y utilidades</title>
+
   <style>
     /* Pixel-art vibe */
     @font-face {
@@ -16,32 +21,38 @@
 
     body {
       margin: 0;
-      padding: 0;
       background-color: #1b1b1b;
       color: #eaeaea;
       font-family: 'Pixel', monospace;
       image-rendering: pixelated;
+
+      /* Scroll cómodo en móvil */
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
     header {
       background: #111;
-      padding: 24px 16px;
+      padding: 28px 16px;
       text-align: center;
       border-bottom: 4px solid #3cff00;
+      position: sticky;
+      top: 0;
+      z-index: 10;
     }
 
     h1 {
       margin: 0;
-      font-size: 20px;
+      font-size: 18px;
       letter-spacing: 2px;
       color: #3cff00;
       text-shadow: 2px 2px #000;
     }
 
     main {
-      max-width: 480px;
+      max-width: 520px;
       margin: 0 auto;
-      padding: 16px;
+      padding: 20px 16px 32px;
     }
 
     ul {
@@ -51,21 +62,26 @@
     }
 
     li {
-      margin-bottom: 12px;
+      margin-bottom: 18px;
     }
 
     a {
       display: block;
-      padding: 14px 12px;
+      padding: 20px 16px;        /* MÁS GRANDE */
       background: #2a2a2a;
       color: #ffffff;
       text-decoration: none;
       border: 3px solid #555;
       box-shadow: 4px 4px 0 #000;
+
+      font-size: 14px;
+      line-height: 1.4;
+
       transition: transform 0.1s ease, box-shadow 0.1s ease;
+      touch-action: manipulation;
     }
 
-    a:hover {
+    a:active {
       transform: translate(2px, 2px);
       box-shadow: 2px 2px 0 #000;
       border-color: #3cff00;
@@ -73,21 +89,34 @@
     }
 
     .tag {
-      display: inline-block;
-      margin-top: 6px;
-      font-size: 10px;
+      display: block;
+      margin-top: 10px;
+      font-size: 11px;
       color: #aaa;
     }
 
     footer {
-      margin-top: 24px;
+      margin-top: 32px;
       text-align: center;
       font-size: 10px;
       color: #666;
     }
+
+    /* Ajustes extra para pantallas muy pequeñas */
+    @media (max-width: 360px) {
+      h1 {
+        font-size: 16px;
+      }
+
+      a {
+        font-size: 13px;
+        padding: 18px 14px;
+      }
+    }
   </style>
 </head>
 <body>
+
   <header>
     <h1>JUEGOS Y UTILIDADES</h1>
   </header>
@@ -96,33 +125,25 @@
     <ul>
       <li>
         <a href="apps/audiacion.html">
-          Entrenamiento de oido 1
-          <div class="tag">Juego · Plataforma</div>
+          Entrenamiento de oído 1
+          <span class="tag">Juego</span>
         </a>
       </li>
+
       <li>
         <a href="apps/audiacion2.html">
-          Entrenamiento de Oido 2
-          <div class="tag">Juego · Arcade</div>
+          Entrenamiento de oído 2
+          <span class="tag">Juego</span>
         </a>
       </li>
-      <li>
-        <a href="#">
-          Conversor de horas
-          <div class="tag">Utilidad</div>
-        </a>
-      </li>
-      <li>
-        <a href="#">
-          Visor de mapas
-          <div class="tag">Utilidad · Mapas</div>
-        </a>
-      </li>
-    </ul>
+
+      
 
     <footer>
       © 2026 · Pixel vibes only
     </footer>
   </main>
+
 </body>
 </html>
+
