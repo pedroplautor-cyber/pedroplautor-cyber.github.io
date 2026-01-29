@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Secuenciador Musical</title>
+
+<style>
+  body {
+    margin: 0;
+    background: #111;
+    color: white;
+    font-family: Arial, sans-serif;
+    text-align: center;
+  }
+
+  h1 {
+    font-size: 18px;
+    margin: 10px 0;
+  }
+
+  .grid-wrapper {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 10px;
+    border-top: 1px solid #333;
+    border-bottom: 1px solid #333;
+  }
+
+  .grid-container {
+    display: flex;
+    width: max-content;
+  }
+
+  #labels {
+    display: grid;
+    grid-template-rows: repeat(14, 36px);
+    margin-right: 6px;
+    font-size: 11px;
+    position: sticky;
+    left: 0;
+    background: #111;
+    z-index: 2;
+  }
+
+  #grid {
+    display: grid;
+    grid-template-columns: repeat(200, 48px);
+    gap: 4px;
+  }
+
+  .cell {
+    width: 48px;
+    height: 36px;
+    background: #222;
+    border-radius: 6px;
+    touch-action: manipulation;
+  }
+
+  .cell.active {
+    background: #4caf50;
+  }
+
+  .cell.playhead {
+    outline: 3px solid #ff5722;
+  }
+
+  .controls {
+    padding: 10px;
+  }
+
+  button {
+    width: 90%;
+    padding: 14px;
+    font-size: 18px;
+    margin-bottom: 10px;
+  }
+
+  input[type="range"] {
+    width: 90%;
+  }
+</style>
+</head>
+
+<body>
+
+<h1>🎶 Secuenciador</h1>
+
+<div class="grid-wrapper" id="scrollContainer">
+  <div class="grid-container">
+    <div id="labels"></div>
+    <div id="grid"></div>
+  </div>
+</div>
+
+<div class="controls">
+  <button id="playBtn">▶ Play</button>
+
+  <label>
+    Loop
+    <input type="checkbox" id="loop" checked>
+  </label>
+
+  <br><br>
+
+  BPM: <span id="bpmValue">120</span><br>
+  <input type="range" id="bpm" min="60" max="200" value="120">
+</div>
+
+<script>
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+const notes = [
+  { name: "B5", freq: 987.77 },
+  { name: "A5", freq: 880 },
+  { name: "G5", freq: 783.99 },
+  { name: "F5", freq: 698.46 },
+  { name: "E5", freq: 659.25 },
+  { name: "D5", freq: 587.33 },
+  { name: "C5", freq: 523.25 },
+  { name: "B4", freq: 493.88 },
+  { name: "A4", freq: 440 },
+  { name: "G4", freq: 392 },
+  { name: "F4", freq: 349.23 },
+  { name: "E4", freq: 329.63 },
+  { name: "D4", freq: 293.66 },
+  { name: "C4", freq: 261.63 }
+];
+
+const steps = 200;
+const cellWidth = 52; // ancho + gap
+let grid = [];
+let cells = [];
+let currentStep = 0;
+let isPlaying = false;
+let timer = null;
+
+const gridEl = document.getElementById("grid");
+const labelsEl = document.getElementById("labels");
+const playBtn = document.getElementById("playBtn");
+const bpmSlider = document.getElementById("bpm");
+const bpmValue = document.getElementById("bpmValue");
+const loopCheckbox = document.getElementById("loop");
+const scrollContainer = document.getElementById("scrollContainer");
+
+/* Labels */
+notes.forEach(n => {
+  const div = document.createElement("div");
+  div.textContent = n.name;
+  labelsEl.appendChild(div);
+});
+
+/* Grid */
+notes.forEach((note, y) => {
+  grid[y] = [];
+  cells[y] = [];
+  for (let x = 0; x < steps; x++) {
+    const cell = document.createElement("div");
+    cell.className = "cell";
+    cell.onclick = () => {
+      cell.classList.toggle("active");
+      grid[y][x] = !grid[y][x];
+    };
+    grid[y][x] = false;
+    cells[y][x] = cell;
+    gridEl.appendChild(cell);
+  }
+});
+
+/* Audio */
+function playNote(freq) {
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+
+  osc.frequency.value = freq;
+  osc.type = "sine";
+
+  gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.25);
+}
+
+/* Step */
+function step() {
+  cells.forEach(row => row.forEach(c => c.classList.remove("playhead")));
+  cells.forEach(row => row[currentStep].classList.add("playhead"));
+
+  notes.forEach((note, y) => {
+    if (grid[y][currentStep]) playNote(note.freq);
+  });
+
+  // autoscroll siguiendo el playhead
+  scrollContainer.scrollLeft = Math.max(
+    0,
+    currentStep * cellWidth - scrollContainer.clientWidth / 2
+  );
+
+  currentStep++;
+
+  if (currentStep >= steps) {
+    if (loopCheckbox.checked) currentStep = 0;
+    else stop();
+  }
+}
+
+/* Play / Stop */
+function play() {
+  if (isPlaying) return;
+  isPlaying = true;
+  playBtn.textContent = "⏹ Stop";
+  currentStep = 0;
+  timer = setInterval(step, 60000 / bpmSlider.value);
+}
+
+function stop() {
+  isPlaying = false;
+  playBtn.textContent = "▶ Play";
+  clearInterval(timer);
+  currentStep = 0;
+  cells.forEach(row => row.forEach(c => c.classList.remove("playhead")));
+}
+
+playBtn.onclick = () => isPlaying ? stop() : play();
+
+bpmSlider.oninput = () => {
+  bpmValue.textContent = bpmSlider.value;
+  if (isPlaying) {
+    clearInterval(timer);
+    timer = setInterval(step, 60000 / bpmSlider.value);
+  }
+};
+</script>
+
+</body>
+</html>
+
+
