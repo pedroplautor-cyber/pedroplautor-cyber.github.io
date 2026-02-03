@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Bordes con grosor por sombra</title>
+<style>
+  body {
+    background:#111;
+    color:#eee;
+    text-align:center;
+    font-family:sans-serif;
+  }
+  canvas {
+    background:white;
+    margin-top:10px;
+  }
+</style>
+</head>
+<body>
+
+<h2>Bordes con grosor según sombras</h2>
+<input type="file" id="upload" accept="image/*"><br><br>
+
+<label>Umbral de borde
+  <input type="range" id="threshold" min="10" max="200" value="60">
+</label>
+
+<label>Grosor máximo
+  <input type="range" id="maxWidth" min="1" max="8" value="4">
+</label>
+
+<br><br>
+<canvas id="canvas"></canvas>
+
+<script>
+const upload = document.getElementById("upload");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+const thresholdInput = document.getElementById("threshold");
+const maxWidthInput = document.getElementById("maxWidth");
+
+let img = new Image();
+
+upload.addEventListener("change", e => {
+  const reader = new FileReader();
+  reader.onload = () => {
+    img.onload = () => process();
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(e.target.files[0]);
+});
+
+thresholdInput.addEventListener("input", process);
+maxWidthInput.addEventListener("input", process);
+
+function process() {
+  if (!img.src) return;
+
+  canvas.width = img.width;
+  canvas.height = img.height;
+  ctx.drawImage(img, 0, 0);
+
+  const src = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const gray = new Float32Array(src.width * src.height);
+
+  // Escala de grises
+  for (let i = 0; i < gray.length; i++) {
+    const r = src.data[i * 4];
+    const g = src.data[i * 4 + 1];
+    const b = src.data[i * 4 + 2];
+    gray[i] = (r + g + b) / 3;
+  }
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = "black";
+
+  const w = canvas.width;
+  const h = canvas.height;
+  const threshold = thresholdInput.value;
+  const maxWidth = maxWidthInput.value;
+
+  // Sobel
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const i = y * w + x;
+
+      const gx =
+        -gray[i - w - 1] + gray[i - w + 1] +
+        -2 * gray[i - 1] + 2 * gray[i + 1] +
+        -gray[i + w - 1] + gray[i + w + 1];
+
+      const gy =
+        -gray[i - w - 1] - 2 * gray[i - w] - gray[i - w + 1] +
+         gray[i + w - 1] + 2 * gray[i + w] + gray[i + w + 1];
+
+      const magnitude = Math.hypot(gx, gy);
+
+      if (magnitude > threshold) {
+        // Contraste local (sombra adyacente)
+        const contrast =
+          Math.abs(gray[i] - gray[i + 1]) +
+          Math.abs(gray[i] - gray[i - 1]) +
+          Math.abs(gray[i] - gray[i + w]) +
+          Math.abs(gray[i] - gray[i - w]);
+
+        const width = Math.min(maxWidth, contrast / 50);
+
+        ctx.lineWidth = width;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + 0.5, y + 0.5);
+        ctx.stroke();
+      }
+    }
+  }
+}
+</script>
+
+</body>
+</html>
