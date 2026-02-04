@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ritmo Master Visual</title>
+
+<style>
+    :root {
+        --primary: #2e7dff;
+        --bg: #121212;
+        --surface: #1e1e1e;
+        --note-bg: rgba(46, 125, 255, 0.2);
+    }
+
+    body {
+        font-family: 'Segoe UI', sans-serif;
+        background: var(--bg);
+        color: #fff;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+    }
+
+    .card {
+        background: var(--surface);
+        padding: 25px;
+        border-radius: 20px;
+        max-width: 700px;
+        width: 100%;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+    }
+
+    /* === EL PENTAGRAMA VISUAL === */
+    .staff {
+        background: #f8f9fa;
+        height: 100px;
+        border-radius: 12px;
+        margin: 20px 0;
+        display: flex;
+        position: relative;
+        overflow: hidden;
+        border: 2px solid #333;
+        /* Rejilla de fondo: 4 columnas para los 4 pulsos */
+        background-image: linear-gradient(to right, #e0e0e0 1px, transparent 1px);
+        background-size: 25% 100%;
+    }
+
+    .note-slot {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        border-right: 1px solid rgba(0,0,0,0.1);
+        background: var(--note-bg);
+        transition: width 0.3s ease;
+        position: relative;
+    }
+
+    .note-slot span {
+        color: #111;
+        font-size: 2.8rem;
+        line-height: 1;
+    }
+
+    /* Recuadro de espacio restante */
+    .empty-slot {
+        flex-grow: 1;
+        background: repeating-linear-gradient(45deg, #222, #222 10px, #2a2a2a 10px, #2a2a2a 20px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #555;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    /* === BOTONES Y MENÚ === */
+    .menu {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+
+    .fig-btn {
+        background: #333;
+        border: none;
+        padding: 15px;
+        border-radius: 10px;
+        color: white;
+        cursor: pointer;
+        font-size: 1.4rem;
+        transition: 0.2s;
+    }
+
+    .fig-btn:hover { background: var(--primary); transform: translateY(-2px); }
+
+    .controls { display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;}
+    
+    button.main { background: var(--primary); color: white; border: none; padding: 12px 25px; border-radius: 8px; font-weight: bold; cursor: pointer;}
+    button.secondary { background: #444; color: white; border: none; padding: 12px 25px; border-radius: 8px; cursor: pointer;}
+
+    .label { font-size: 0.8rem; color: #888; margin-bottom: 5px; display: block; }
+</style>
+</head>
+<body>
+
+<div class="card">
+    <div style="display:flex; justify-content: space-between; align-items: center;">
+        <h2>🎼 Compás 4/4</h2>
+        <div>Puntos: <b id="score">0</b></div>
+    </div>
+
+    <div class="controls">
+        <button class="main" onclick="playSolution()">▶ Escuchar Reto</button>
+        <button class="secondary" onclick="check()">Validar</button>
+        <button class="secondary" onclick="nextRound()">Siguiente</button>
+    </div>
+
+    <span class="label">Tus notas:</span>
+    <div id="player-staff" class="staff">
+        </div>
+
+    <div class="menu">
+        <button class="fig-btn" onclick="add('W')">𝅝</button>
+        <button class="fig-btn" onclick="add('H')">𝅗𝅥</button>
+        <button class="fig-btn" onclick="add('Q')">♩</button>
+        <button class="fig-btn" onclick="add('E')">♪</button>
+        <button class="fig-btn" onclick="add('S')">𝅘𝅥𝅯</button>
+        <button class="fig-btn" onclick="remove()" style="background:#c62828">⌫</button>
+    </div>
+
+    <div id="solution-area" style="display:none">
+        <span class="label">Solución correcta:</span>
+        <div id="solution-staff" class="staff" style="background-color: #e8f5e9; height: 60px;"></div>
+    </div>
+    
+    <p id="status" style="text-align:center; font-weight: bold; min-height: 1.2em;"></p>
+</div>
+
+<script>
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+const figures = { W: '𝅝', H: '𝅗𝅥', Q: '♩', E: '♪', S: '𝅘𝅥𝅯' };
+const values = { W: 4, H: 2, Q: 1, E: 0.5, S: 0.25 };
+
+let solution = [];
+let userInput = [];
+let score = 0;
+
+function playTone(startTime, duration) {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(392, startTime); // Nota Sol
+    gain.gain.setValueAtTime(0, startTime);
+    gain.gain.linearRampToValueAtTime(0.2, startTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(startTime); osc.stop(startTime + duration);
+}
+
+function generateChallenge() {
+    let compas = []; let rem = 4;
+    const keys = Object.keys(values);
+    while(rem > 0) {
+        let f = keys[Math.floor(Math.random()*keys.length)];
+        if(values[f] <= rem) { compas.push(f); rem -= values[f]; }
+    }
+    return compas;
+}
+
+function add(f) {
+    let total = userInput.reduce((s, v) => s + values[v], 0);
+    if(total + values[f] <= 4) {
+        userInput.push(f);
+        renderStaff('player-staff', userInput, true);
+    }
+}
+
+function remove() {
+    userInput.pop();
+    renderStaff('player-staff', userInput, true);
+}
+
+function renderStaff(id, notes, showRemaining) {
+    const el = document.getElementById(id);
+    let html = '';
+    let totalUsed = 0;
+
+    notes.forEach(f => {
+        const width = (values[f] / 4) * 100;
+        totalUsed += values[f];
+        html += `<div class="note-slot" style="width: ${width}%"><span>${figures[f]}</span></div>`;
+    });
+
+    if(showRemaining && totalUsed < 4) {
+        const remWidth = ((4 - totalUsed) / 4) * 100;
+        html += `<div class="empty-slot" style="width: ${remWidth}%">Libre</div>`;
+    }
+
+    el.innerHTML = html;
+}
+
+function playSolution() {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    let now = audioCtx.currentTime + 0.2;
+    let timeAcc = 0;
+    solution.forEach(f => {
+        playTone(now + timeAcc, (values[f] * 0.5) - 0.05);
+        timeAcc += values[f] * 0.5;
+    });
+}
+
+function check() {
+    document.getElementById('solution-area').style.display = 'block';
+    renderStaff('solution-staff', solution, false);
+    
+    const isCorrect = JSON.stringify(solution) === JSON.stringify(userInput);
+    const status = document.getElementById('status');
+    
+    if(isCorrect) {
+        score += 100;
+        status.textContent = "¡Increíble! Ritmo perfecto.";
+        status.style.color = "#4caf50";
+    } else {
+        status.textContent = "Casi... ¡Fíjate en las duraciones!";
+        status.style.color = "#ff5252";
+    }
+    document.getElementById('score').textContent = score;
+}
+
+function nextRound() {
+    solution = generateChallenge();
+    userInput = [];
+    document.getElementById('solution-area').style.display = 'none';
+    document.getElementById('status').textContent = "";
+    renderStaff('player-staff', userInput, true);
+}
+
+// Inicio
+solution = generateChallenge();
+renderStaff('player-staff', userInput, true);
+</script>
+</body>
+</html>
