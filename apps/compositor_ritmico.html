@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Rhythm Drag Composer</title>
+    <title>Rhythm Loop Pro</title>
     <style>
         :root {
             --primary: #8b5cf6;
@@ -12,7 +12,7 @@
             --text: #f8fafc;
             --accent: #10b981;
             --selection: #fde047;
-            --dragging: rgba(139, 92, 246, 0.5);
+            --stop: #ef4444;
         }
 
         body {
@@ -27,36 +27,32 @@
             user-select: none;
         }
 
-        /* Unigrama */
+        /* UNIGRAMA ESTRECHO */
         #viewport {
-            flex: 1;
+            flex: 0 0 100px;
             display: flex;
             align-items: center;
             overflow-x: auto;
-            padding: 0 40px;
-            position: relative;
+            background: rgba(0,0,0,0.3);
+            border-bottom: 2px solid #334155;
+            padding: 0 15px;
         }
 
         .staff-line {
             height: 2px;
-            background-color: rgba(248, 250, 252, 0.3);
+            background-color: rgba(248, 250, 252, 0.4);
             min-width: 100%;
             display: flex;
             align-items: center;
-            gap: 15px;
-            padding: 20px;
+            gap: 12px;
         }
 
         .figure-item {
-            position: relative;
-            font-size: 3.2rem;
-            padding: 10px;
-            border-radius: 12px;
+            font-size: 2rem;
+            padding: 5px;
+            border-radius: 8px;
             border: 2px solid transparent;
-            cursor: grab;
-            transition: transform 0.2s, background 0.2s;
-            touch-action: none; /* Crucial para drag manual */
-            background: transparent;
+            touch-action: none;
         }
 
         .figure-item.selected {
@@ -64,56 +60,85 @@
             background: rgba(253, 224, 71, 0.1);
         }
 
-        .figure-item.is-dragging {
-            opacity: 0.6;
-            background: var(--dragging);
-            transform: scale(1.1);
-            z-index: 100;
-        }
-
         .dotted::after {
             content: "•";
             color: #fbbf24;
-            font-size: 1.5rem;
-            margin-left: -5px;
+            font-size: 1.2rem;
+            vertical-align: super;
         }
 
-        .playing { color: var(--accent) !important; }
-
-        /* Controles */
+        /* PANEL DE CONTROLES */
         .controls {
+            flex: 1;
             background: var(--card);
-            padding: 15px;
-            border-radius: 25px 25px 0 0;
-            box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
         }
 
         .grid {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
-            gap: 8px;
-            margin-bottom: 12px;
+            gap: 4px;
+            margin-bottom: 8px;
         }
 
         .btn {
             background: #334155;
             border: 1px solid #475569;
-            border-radius: 12px;
-            padding: 12px 5px;
+            border-radius: 8px;
+            padding: 6px 0;
             color: white;
             display: flex;
             flex-direction: column;
             align-items: center;
-            font-size: 0.65rem;
+            font-size: 0.55rem;
         }
 
-        .btn span:first-child { font-size: 1.4rem; }
+        .btn span:first-child { font-size: 1.2rem; line-height: 1; }
+
+        .dot-btn {
+            grid-column: span 5;
+            flex-direction: row !important;
+            justify-content: center;
+            gap: 8px;
+            padding: 8px;
+            background: #2d3748;
+            border: 1px dashed var(--selection);
+            color: var(--selection);
+            font-weight: bold;
+        }
+
+        /* TRANSPORTE (PLAY, STOP, LOOP) */
+        .transport {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            margin-top: 20 px;
+            padding-bottom: 10px;
+        }
+
+        .t-btn {
+            border: none;
+            border-radius: 10px;
+            padding: 15px 5px;
+            font-weight: bold;
+            color: white;
+            font-size: 0.8rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .play { background: var(--accent); }
+        .stop { background: var(--stop); }
+        .loop-toggle { background: #475569; }
+        .loop-toggle.active { background: var(--primary); box-shadow: 0 0 10px var(--primary); }
         
-        .actions { display: flex; gap: 10px; }
-        .play-btn { background: var(--accent); flex: 2; padding: 15px; border-radius: 12px; border: none; font-weight: bold; color: white; }
-        .del-btn { background: #ef4444; flex: 1; border-radius: 12px; border: none; color: white; }
-        
-        .hint { text-align: center; font-size: 0.7rem; color: #94a3b8; margin-bottom: 8px; }
+        .del-btn { background: #64748b; grid-column: span 3; padding: 10px; margin-top: 5px; border-radius: 8px; border: none; color: white; font-size: 0.7rem;}
+
+        .playing { color: var(--accent) !important; transform: scale(1.3); filter: drop-shadow(0 0 5px var(--accent)); }
     </style>
 </head>
 <body>
@@ -123,8 +148,6 @@
     </div>
 
     <div class="controls">
-        <div class="hint">Toca para editar • Arrastra para reordenar</div>
-        
         <div class="grid">
             <button class="btn" onclick="handleInput('𝅝', 4, false)"><span>𝅝</span>1/1</button>
             <button class="btn" onclick="handleInput('𝅗𝅥', 2, false)"><span>𝅗𝅥</span>1/2</button>
@@ -132,103 +155,51 @@
             <button class="btn" onclick="handleInput('𝅘𝅥𝅮', 0.5, false)"><span>𝅘𝅥𝅮</span>1/8</button>
             <button class="btn" onclick="handleInput('𝅘𝅥𝅯', 0.25, false)"><span>𝅘𝅥𝅯</span>1/16</button>
             
-            <button class="btn" onclick="handleInput('𝄻', 4, true)"><span>𝄻</span>S 1/1</button>
-            <button class="btn" onclick="handleInput('𝄼', 2, true)"><span>𝄼</span>S 1/2</button>
-            <button class="btn" onclick="handleInput('𝄽', 1, true)"><span>𝄽</span>S 1/4</button>
-            <button class="btn" onclick="handleInput('𝄾', 0.5, true)"><span>𝄾</span>S 1/8</button>
-            <button class="btn" onclick="handleInput('𝄿', 0.25, true)"><span>𝄿</span>S 1/16</button>
+            <button class="btn" onclick="handleInput('𝄻', 4, true)"><span>𝄻</span>S1/1</button>
+            <button class="btn" onclick="handleInput('𝄼', 2, true)"><span>𝄼</span>S1/2</button>
+            <button class="btn" onclick="handleInput('𝄽', 1, true)"><span>𝄽</span>S1/4</button>
+            <button class="btn" onclick="handleInput('𝄾', 0.5, true)"><span>𝄾</span>S1/8</button>
+            <button class="btn" onclick="handleInput('𝄿', 0.25, true)"><span>𝄿</span>S1/16</button>
 
-            <button class="btn" style="grid-column: span 5; flex-direction: row; gap: 10px;" onclick="toggleDot()">
-                <span>•</span> PUNTILLO (ON/OFF)
-            </button>
+            <button class="btn dot-btn" onclick="toggleDot()"><span>•</span> PUNTILLO</button>
         </div>
 
-        <div class="actions">
-            <button class="del-btn" onclick="deleteTarget()">BORRAR</button>
-            <button class="play-btn" id="playBtn" onclick="play()">REPRODUCIR</button>
+        <div class="transport">
+            <button class="t-btn play" id="playBtn" onclick="startPlayback()"><span>▶</span>PLAY</button>
+            <button class="t-btn stop" onclick="stopPlayback()"><span>■</span>STOP</button>
+            <button class="t-btn loop-toggle" id="loopBtn" onclick="toggleLoop()"><span>∞</span>LOOP</button>
+            
+            <button class="del-btn" onclick="deleteTarget()">BORRAR ELEMENTO O ÚLTIMO</button>
         </div>
+		
+		
     </div>
 
     <script>
         let composition = [];
         let selectedIndex = -1;
-        let draggedIndex = null;
+        let isPlaying = false;
+        let isLooping = false;
+        let currentTimeout = null;
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
         function render() {
             const staff = document.getElementById('staff');
             staff.innerHTML = '';
-            
             composition.forEach((item, i) => {
                 const el = document.createElement('div');
                 el.className = `figure-item ${item.hasDot ? 'dotted' : ''} ${selectedIndex === i ? 'selected' : ''}`;
                 el.innerHTML = item.symbol;
                 el.setAttribute('data-index', i);
-                
-                // Eventos Touch para Reordenar
-                el.ontouchstart = (e) => handleTouchStart(e, i);
-                el.ontouchmove = (e) => handleTouchMove(e);
-                el.ontouchend = (e) => handleTouchEnd(e);
-                
-                // Click simple para selección
-                el.onclick = (e) => {
-                    selectedIndex = (selectedIndex === i) ? -1 : i;
-                    render();
-                };
-
+                el.onclick = (e) => { e.stopPropagation(); selectedIndex = (selectedIndex === i) ? -1 : i; render(); };
                 staff.appendChild(el);
             });
         }
 
-        // --- Lógica de Arrastre (Drag & Drop) ---
-        let startX = 0;
-        let currentDragEl = null;
-
-        function handleTouchStart(e, index) {
-            draggedIndex = index;
-            startX = e.touches[0].clientX;
-            currentDragEl = e.currentTarget;
-            // Pequeño delay para diferenciar click de drag
-            setTimeout(() => {
-                if(draggedIndex !== null) currentDragEl.classList.add('is-dragging');
-            }, 100);
-        }
-
-        function handleTouchMove(e) {
-            if (draggedIndex === null) return;
-            const touchX = e.touches[0].clientX;
-            const elements = [...document.querySelectorAll('.figure-item')];
-            
-            // Buscar sobre qué elemento estamos pasando
-            const targetEl = elements.find(el => {
-                const rect = el.getBoundingClientRect();
-                return touchX > rect.left && touchX < rect.right;
-            });
-
-            if (targetEl) {
-                const targetIndex = parseInt(targetEl.getAttribute('data-index'));
-                if (targetIndex !== draggedIndex) {
-                    // Reordenar array
-                    const movedItem = composition.splice(draggedIndex, 1)[0];
-                    composition.splice(targetIndex, 0, movedItem);
-                    draggedIndex = targetIndex;
-                    render();
-                    // Mantener estado visual de dragging
-                    const newElements = document.querySelectorAll('.figure-item');
-                    newElements[targetIndex].classList.add('is-dragging');
-                }
-            }
-        }
-
-        function handleTouchEnd() {
-            draggedIndex = null;
-            render();
-        }
-
-        // --- Lógica de Edición ---
         function handleInput(symbol, baseDur, isRest) {
             if (selectedIndex === -1) {
                 composition.push({ symbol, baseDur, isRest, hasDot: false });
+                setTimeout(() => { document.getElementById('viewport').scrollLeft = 9999; }, 50);
             } else {
                 const wasDotted = composition[selectedIndex].hasDot;
                 composition[selectedIndex] = { symbol, baseDur, isRest, hasDot: wasDotted };
@@ -243,6 +214,11 @@
             }
         }
 
+        function toggleLoop() {
+            isLooping = !isLooping;
+            document.getElementById('loopBtn').classList.toggle('active', isLooping);
+        }
+
         function deleteTarget() {
             if (selectedIndex !== -1) {
                 composition.splice(selectedIndex, 1);
@@ -253,30 +229,47 @@
             render();
         }
 
-        async function play() {
+        async function startPlayback() {
+            if (isPlaying || composition.length === 0) return;
             if (audioCtx.state === 'suspended') audioCtx.resume();
-            const btn = document.getElementById('playBtn');
-            btn.disabled = true;
-            const baseTempo = 450; 
-            const elements = document.querySelectorAll('.figure-item');
-
-            for (let i = 0; i < composition.length; i++) {
-                const item = composition[i];
-                elements[i].classList.add('playing');
-                if (!item.isRest) {
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    osc.frequency.setValueAtTime(880, audioCtx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
-                    osc.connect(gain); gain.connect(audioCtx.destination);
-                    osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+            
+            isPlaying = true;
+            document.getElementById('playBtn').style.opacity = "0.5";
+            
+            do {
+                const elements = document.querySelectorAll('.figure-item');
+                for (let i = 0; i < composition.length; i++) {
+                    if (!isPlaying) break;
+                    
+                    const item = composition[i];
+                    elements[i].classList.add('playing');
+                    
+                    if (!item.isRest) {
+                        const osc = audioCtx.createOscillator();
+                        const g = audioCtx.createGain();
+                        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+                        g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+                        osc.connect(g); g.connect(audioCtx.destination);
+                        osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+                    }
+                    
+                    const duration = (item.hasDot ? item.baseDur * 1.5 : item.baseDur) * 400;
+                    await new Promise(r => { currentTimeout = setTimeout(r, duration); });
+                    elements[i].classList.remove('playing');
                 }
-                await new Promise(r => setTimeout(r, (item.hasDot ? item.baseDur * 1.5 : item.baseDur) * baseTempo));
-                elements[i].classList.remove('playing');
-            }
-            btn.disabled = false;
+            } while (isLooping && isPlaying);
+            
+            stopPlayback();
         }
 
+        function stopPlayback() {
+            isPlaying = false;
+            clearTimeout(currentTimeout);
+            document.getElementById('playBtn').style.opacity = "1";
+            document.querySelectorAll('.figure-item').forEach(el => el.classList.remove('playing'));
+        }
+
+        document.getElementById('viewport').onclick = () => { selectedIndex = -1; render(); };
         render();
     </script>
 </body>
