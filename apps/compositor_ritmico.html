@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Rhythm Drag Composer</title>
+    <style>
+        :root {
+            --primary: #8b5cf6;
+            --bg: #0f172a;
+            --card: #1e293b;
+            --text: #f8fafc;
+            --accent: #10b981;
+            --selection: #fde047;
+            --dragging: rgba(139, 92, 246, 0.5);
+        }
+
+        body {
+            font-family: system-ui, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* Unigrama */
+        #viewport {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            overflow-x: auto;
+            padding: 0 40px;
+            position: relative;
+        }
+
+        .staff-line {
+            height: 2px;
+            background-color: rgba(248, 250, 252, 0.3);
+            min-width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 20px;
+        }
+
+        .figure-item {
+            position: relative;
+            font-size: 3.2rem;
+            padding: 10px;
+            border-radius: 12px;
+            border: 2px solid transparent;
+            cursor: grab;
+            transition: transform 0.2s, background 0.2s;
+            touch-action: none; /* Crucial para drag manual */
+            background: transparent;
+        }
+
+        .figure-item.selected {
+            border-color: var(--selection);
+            background: rgba(253, 224, 71, 0.1);
+        }
+
+        .figure-item.is-dragging {
+            opacity: 0.6;
+            background: var(--dragging);
+            transform: scale(1.1);
+            z-index: 100;
+        }
+
+        .dotted::after {
+            content: "•";
+            color: #fbbf24;
+            font-size: 1.5rem;
+            margin-left: -5px;
+        }
+
+        .playing { color: var(--accent) !important; }
+
+        /* Controles */
+        .controls {
+            background: var(--card);
+            padding: 15px;
+            border-radius: 25px 25px 0 0;
+            box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .btn {
+            background: #334155;
+            border: 1px solid #475569;
+            border-radius: 12px;
+            padding: 12px 5px;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 0.65rem;
+        }
+
+        .btn span:first-child { font-size: 1.4rem; }
+        
+        .actions { display: flex; gap: 10px; }
+        .play-btn { background: var(--accent); flex: 2; padding: 15px; border-radius: 12px; border: none; font-weight: bold; color: white; }
+        .del-btn { background: #ef4444; flex: 1; border-radius: 12px; border: none; color: white; }
+        
+        .hint { text-align: center; font-size: 0.7rem; color: #94a3b8; margin-bottom: 8px; }
+    </style>
+</head>
+<body>
+
+    <div id="viewport">
+        <div class="staff-line" id="staff"></div>
+    </div>
+
+    <div class="controls">
+        <div class="hint">Toca para editar • Arrastra para reordenar</div>
+        
+        <div class="grid">
+            <button class="btn" onclick="handleInput('𝅝', 4, false)"><span>𝅝</span>1/1</button>
+            <button class="btn" onclick="handleInput('𝅗𝅥', 2, false)"><span>𝅗𝅥</span>1/2</button>
+            <button class="btn" onclick="handleInput('𝅘𝅥', 1, false)"><span>𝅘𝅥</span>1/4</button>
+            <button class="btn" onclick="handleInput('𝅘𝅥𝅮', 0.5, false)"><span>𝅘𝅥𝅮</span>1/8</button>
+            <button class="btn" onclick="handleInput('𝅘𝅥𝅯', 0.25, false)"><span>𝅘𝅥𝅯</span>1/16</button>
+            
+            <button class="btn" onclick="handleInput('𝄻', 4, true)"><span>𝄻</span>S 1/1</button>
+            <button class="btn" onclick="handleInput('𝄼', 2, true)"><span>𝄼</span>S 1/2</button>
+            <button class="btn" onclick="handleInput('𝄽', 1, true)"><span>𝄽</span>S 1/4</button>
+            <button class="btn" onclick="handleInput('𝄾', 0.5, true)"><span>𝄾</span>S 1/8</button>
+            <button class="btn" onclick="handleInput('𝄿', 0.25, true)"><span>𝄿</span>S 1/16</button>
+
+            <button class="btn" style="grid-column: span 5; flex-direction: row; gap: 10px;" onclick="toggleDot()">
+                <span>•</span> PUNTILLO (ON/OFF)
+            </button>
+        </div>
+
+        <div class="actions">
+            <button class="del-btn" onclick="deleteTarget()">BORRAR</button>
+            <button class="play-btn" id="playBtn" onclick="play()">REPRODUCIR</button>
+        </div>
+    </div>
+
+    <script>
+        let composition = [];
+        let selectedIndex = -1;
+        let draggedIndex = null;
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function render() {
+            const staff = document.getElementById('staff');
+            staff.innerHTML = '';
+            
+            composition.forEach((item, i) => {
+                const el = document.createElement('div');
+                el.className = `figure-item ${item.hasDot ? 'dotted' : ''} ${selectedIndex === i ? 'selected' : ''}`;
+                el.innerHTML = item.symbol;
+                el.setAttribute('data-index', i);
+                
+                // Eventos Touch para Reordenar
+                el.ontouchstart = (e) => handleTouchStart(e, i);
+                el.ontouchmove = (e) => handleTouchMove(e);
+                el.ontouchend = (e) => handleTouchEnd(e);
+                
+                // Click simple para selección
+                el.onclick = (e) => {
+                    selectedIndex = (selectedIndex === i) ? -1 : i;
+                    render();
+                };
+
+                staff.appendChild(el);
+            });
+        }
+
+        // --- Lógica de Arrastre (Drag & Drop) ---
+        let startX = 0;
+        let currentDragEl = null;
+
+        function handleTouchStart(e, index) {
+            draggedIndex = index;
+            startX = e.touches[0].clientX;
+            currentDragEl = e.currentTarget;
+            // Pequeño delay para diferenciar click de drag
+            setTimeout(() => {
+                if(draggedIndex !== null) currentDragEl.classList.add('is-dragging');
+            }, 100);
+        }
+
+        function handleTouchMove(e) {
+            if (draggedIndex === null) return;
+            const touchX = e.touches[0].clientX;
+            const elements = [...document.querySelectorAll('.figure-item')];
+            
+            // Buscar sobre qué elemento estamos pasando
+            const targetEl = elements.find(el => {
+                const rect = el.getBoundingClientRect();
+                return touchX > rect.left && touchX < rect.right;
+            });
+
+            if (targetEl) {
+                const targetIndex = parseInt(targetEl.getAttribute('data-index'));
+                if (targetIndex !== draggedIndex) {
+                    // Reordenar array
+                    const movedItem = composition.splice(draggedIndex, 1)[0];
+                    composition.splice(targetIndex, 0, movedItem);
+                    draggedIndex = targetIndex;
+                    render();
+                    // Mantener estado visual de dragging
+                    const newElements = document.querySelectorAll('.figure-item');
+                    newElements[targetIndex].classList.add('is-dragging');
+                }
+            }
+        }
+
+        function handleTouchEnd() {
+            draggedIndex = null;
+            render();
+        }
+
+        // --- Lógica de Edición ---
+        function handleInput(symbol, baseDur, isRest) {
+            if (selectedIndex === -1) {
+                composition.push({ symbol, baseDur, isRest, hasDot: false });
+            } else {
+                const wasDotted = composition[selectedIndex].hasDot;
+                composition[selectedIndex] = { symbol, baseDur, isRest, hasDot: wasDotted };
+            }
+            render();
+        }
+
+        function toggleDot() {
+            if (selectedIndex !== -1) {
+                composition[selectedIndex].hasDot = !composition[selectedIndex].hasDot;
+                render();
+            }
+        }
+
+        function deleteTarget() {
+            if (selectedIndex !== -1) {
+                composition.splice(selectedIndex, 1);
+                selectedIndex = -1;
+            } else {
+                composition.pop();
+            }
+            render();
+        }
+
+        async function play() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const btn = document.getElementById('playBtn');
+            btn.disabled = true;
+            const baseTempo = 450; 
+            const elements = document.querySelectorAll('.figure-item');
+
+            for (let i = 0; i < composition.length; i++) {
+                const item = composition[i];
+                elements[i].classList.add('playing');
+                if (!item.isRest) {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+                    osc.connect(gain); gain.connect(audioCtx.destination);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+                }
+                await new Promise(r => setTimeout(r, (item.hasDot ? item.baseDur * 1.5 : item.baseDur) * baseTempo));
+                elements[i].classList.remove('playing');
+            }
+            btn.disabled = false;
+        }
+
+        render();
+    </script>
+</body>
+</html>
