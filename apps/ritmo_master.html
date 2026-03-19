@@ -3,153 +3,239 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ritmo Master Pro - WAV Edition</title>
+<title>Ritmo Master Pro - Piano & Sprites</title>
 
 <style>
-    :root {
-        --primary: #2e7dff;
-        --bg: #121212;
-        --surface: #1e1e1e;
-        --note-bg: rgba(46, 125, 255, 0.2);
-        --success: #4caf50;
-        --error: #ff5252;
-    }
+/* =========================
+    🎮 8-BIT GLOBAL STYLE
+   ========================= */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
-    body {
-        font-family: 'Segoe UI', sans-serif;
-        background: var(--bg);
-        color: #fff;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 20px;
-    }
+:root {
+  --bg: #0f380f;
+  --bg-light: #306230;
+  --accent: #8bac0f;
+  --accent-light: #9bbc0f;
+  --text: #e0f8cf;
+  --border-dark: #000;
+  --border-light: #9bbc0f;
+  --success: #4caf50;
+  --error: #ff5252;
+}
 
-    .card {
-        background: var(--surface);
-        padding: 25px;
-        border-radius: 20px;
-        max-width: 700px;
-        width: 100%;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.6);
-    }
+* { margin: 0; padding: 0; box-sizing: border-box; border-radius: 0 !important; }
 
-    /* === SELECTOR DE DIFICULTAD === */
-    .difficulty-selector {
-        margin-bottom: 20px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        background: #2a2a2a;
-        padding: 10px 15px;
-        border-radius: 10px;
-    }
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: 'Press Start 2P', monospace;
+  font-size: 11px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  image-rendering: pixelated;
+}
 
-    select {
-        background: #444;
-        color: white;
-        border: 1px solid var(--primary);
-        padding: 5px;
-        border-radius: 5px;
-        cursor: pointer;
-    }
+.card {
+  background: var(--bg-light);
+  border: 6px solid var(--border-dark);
+  padding: 20px;
+  max-width: 700px;
+  width: 100%;
+  box-shadow: inset -4px -4px 0 #222, inset 4px 4px 0 var(--border-light);
+}
 
-    .staff {
-        background: #f8f9fa;
-        height: 100px;
-        border-radius: 12px;
-        margin: 20px 0;
-        display: flex;
-        position: relative;
-        overflow: hidden;
-        border: 2px solid #333;
-        background-image: linear-gradient(to right, #e0e0e0 1px, transparent 1px);
-        background-size: 25% 100%;
-    }
+.controls-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 10px 0;
+    flex-wrap: wrap;
+}
 
-    .note-slot {
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        border-right: 1px solid rgba(0,0,0,0.1);
-        background: var(--note-bg);
-        transition: width 0.3s ease;
-    }
+.slider-group {
+    flex: 1;
+    background: rgba(0,0,0,0.2);
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 140px;
+}
 
-    .note-slot span {
-        color: #111;
-        font-size: 2.8rem;
-    }
+input[type=range] {
+    -webkit-appearance: none;
+    background: var(--bg);
+    height: 8px;
+    border: 2px solid var(--border-dark);
+}
 
-    .empty-slot {
-        flex-grow: 1;
-        background: repeating-linear-gradient(45deg, #222, #222 10px, #2a2a2a 10px, #2a2a2a 20px);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #555;
-        font-size: 0.8rem;
-    }
+input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    background: var(--accent-light);
+    border: 2px solid var(--border-dark);
+    cursor: pointer;
+}
 
-    .menu { display: flex; justify-content: center; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+#feedback-box {
+    width: 100%;
+    height: 100px;
+    margin: 10px auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 4px solid var(--border-dark);
+    background: var(--bg);
+    position: relative;
+    overflow: visible;
+}
 
-    .fig-btn {
-        background: #333;
-        border: none;
-        padding: 12px;
-        border-radius: 10px;
-        color: white;
-        cursor: pointer;
-        font-size: 1.4rem;
-        transition: 0.2s;
-        min-width: 60px;
-    }
+.char-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
 
-    .fig-btn:hover:not(:disabled) { background: var(--primary); transform: translateY(-2px); }
-    .fig-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.char-sprite-img {
+    width: 64px;
+    height: 64px;
+    image-rendering: pixelated;
+    animation: bounce 0.5s infinite alternate;
+}
 
-    .controls { display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;}
-    
-    button.main { background: var(--primary); color: white; border: none; padding: 12px 25px; border-radius: 8px; font-weight: bold; cursor: pointer;}
-    button.secondary { background: #444; color: white; border: none; padding: 12px 25px; border-radius: 8px; cursor: pointer;}
+/* Bocadillo de texto (Speech Bubble) */
+.speech-bubble {
+    position: relative;
+    background: #fff;
+    color: #000;
+    padding: 8px;
+    border: 3px solid #000;
+    font-size: 8px;
+    max-width: 150px;
+    line-height: 1.2;
+}
 
-    .label { font-size: 0.8rem; color: #888; margin-bottom: 5px; display: block; }
-    
-    #loading-msg { color: #ffeb3b; font-size: 0.9rem; margin-bottom: 10px; }
+.speech-bubble::after {
+    content: '';
+    position: absolute;
+    left: -12px;
+    top: 50%;
+    transform: translateY(-50%);
+    border-width: 6px;
+    border-style: solid;
+    border-color: transparent #000 transparent transparent;
+}
+
+@keyframes bounce {
+    from { transform: translateY(0); }
+    to { transform: translateY(-8px); }
+}
+
+.staff {
+    background: #f8f9fa;
+    height: 80px;
+    margin: 15px 0;
+    display: flex;
+    position: relative;
+    border: 4px solid var(--border-dark);
+}
+
+.note-slot {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border-right: 2px solid #ccc;
+    background: rgba(139, 172, 15, 0.2);
+    position: relative;
+}
+
+.note-slot span { color: #000; font-size: 1.8rem; }
+.triplet-mark { color: #d32f2f; font-size: 10px; font-weight: bold; position: absolute; top: 5px; }
+
+.empty-slot {
+    flex-grow: 1;
+    background: repeating-linear-gradient(45deg, #ddd, #ddd 10px, #eee 10px, #eee 20px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #888;
+    font-size: 8px;
+}
+
+.difficulty-selector { margin: 15px 0; padding: 10px; border: 4px solid var(--border-dark); background: var(--bg); }
+
+.menu { display: flex; justify-content: center; gap: 8px; margin: 15px 0; flex-wrap: wrap; }
+
+.fig-btn {
+    background: var(--bg-light);
+    border: 4px solid var(--border-dark);
+    padding: 10px;
+    color: white;
+    cursor: pointer;
+    font-size: 1.2rem;
+    box-shadow: 4px 4px 0 var(--border-dark);
+    position: relative;
+}
+
+.fig-btn:active { transform: translate(2px, 2px); box-shadow: 0 0 0; }
+.fig-btn:disabled { opacity: 0.3; filter: grayscale(1); }
+
+.action-buttons { display: flex; gap: 10px; margin-bottom: 15px; justify-content: center; flex-wrap: wrap;}
+
+button.main { background: var(--accent); color: var(--bg); font-weight: bold; padding: 10px; cursor: pointer; border: 4px solid var(--border-dark); }
+button.secondary { background: var(--bg-light); color: var(--text); padding: 10px; cursor: pointer; border: 4px solid var(--border-dark); }
+
+.label { font-size: 9px; color: var(--accent-light); text-transform: uppercase;}
+
+#status { text-align: center; font-size: 10px; margin-top: 10px; height: 20px; }
+
 </style>
 </head>
 <body>
 
 <div class="card">
-    <div style="display:flex; justify-content: space-between; align-items: center;">
-        <h2>🎼 Ritmo Master</h2>
-        <div>Puntos: <b id="score">0</b></div>
+    <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <h2>🎼 PIANO MASTER</h2>
+        <div id="round-counter">RONDA: <span id="round">1</span>/10</div>
+        <div>PTS: <span id="score">0</span></div>
     </div>
 
     <div class="difficulty-selector">
-        <span>Nivel de Dificultad:</span>
-        <select id="difficulty" onchange="nextRound()">
-            <option value="1">1 - Redondas y Blancas</option>
-            <option value="2">2 - Añade Negras</option>
-            <option value="3">3 - Iniciación Corcheas</option>
-            <option value="4">4 - Corcheas Mixtas</option>
-            <option value="5">5 - Semicorcheas</option>
-            <option value="6">6 - Ritmos Rápidos</option>
-            <option value="7">7 - Maestro del Ritmo</option>
+        <span class="label">DIFICULTAD:</span>
+        <select id="difficulty" onchange="resetGame()" style="width: 100%; margin-top: 5px; font-family: inherit; font-size: 9px;">
+            <option value="1">1 - REDONDAS/BLANCAS</option>
+            <option value="2">2 - NEGRAS</option>
+            <option value="3">3 - INICIACIÓN CORCHEAS</option>
+            <option value="4">4 - CORCHEAS MIXTAS</option>
+            <option value="5">5 - SEMICORCHEAS</option>
+            <option value="6">6 - TRESILLOS</option>
+            <option value="7">7 - MAESTRO (MIX)</option>
         </select>
     </div>
 
-    <div id="loading-msg">Cargando sonido...</div>
-
-    <div class="controls">
-        <button class="main" id="playBtn" onclick="playSolution()" disabled>▶ Escuchar Reto</button>
-        <button class="secondary" onclick="check()">Validar</button>
-        <button class="secondary" onclick="nextRound()">Siguiente</button>
+    <div class="controls-row">
+        <div class="slider-group">
+            <span class="label">VOL: <span id="volVal">50</span>%</span>
+            <input type="range" id="volControl" min="0" max="1" step="0.1" value="0.5" oninput="document.getElementById('volVal').innerText=Math.round(this.value*100)">
+        </div>
+        <div class="slider-group">
+            <span class="label">BPM: <span id="bpmVal">100</span></span>
+            <input type="range" id="bpmControl" min="60" max="180" step="5" value="100" oninput="document.getElementById('bpmVal').innerText=this.value">
+        </div>
     </div>
 
-    <span class="label">Tus notas (Compás 4/4):</span>
+    <div class="action-buttons">
+        <button class="main" id="playBtn" onclick="playSolution()">▶ ESCUCHAR</button>
+        <button class="secondary" id="checkBtn" onclick="check()">VALIDAR</button>
+        <button class="secondary" id="nextBtn" onclick="nextRound()" style="display:none">SIGUIENTE</button>
+    </div>
+
+    <span class="label">TU COMPÁS:</span>
     <div id="player-staff" class="staff"></div>
 
     <div class="menu">
@@ -157,79 +243,112 @@
         <button id="btn-H" class="fig-btn" onclick="add('H')">𝅗𝅥</button>
         <button id="btn-Q" class="fig-btn" onclick="add('Q')">♩</button>
         <button id="btn-E" class="fig-btn" onclick="add('E')">♪</button>
+        <button id="btn-T" class="fig-btn" onclick="add('T')">♪<small style="font-size:7px; position:absolute; top:2px; right:2px;">3</small></button>
         <button id="btn-S" class="fig-btn" onclick="add('S')">𝅘𝅥𝅯</button>
         <button class="fig-btn" onclick="remove()" style="background:#c62828">⌫</button>
     </div>
 
+    <div id="feedback-box"></div>
+
     <div id="solution-area" style="display:none">
-        <span class="label">Solución correcta:</span>
-        <div id="solution-staff" class="staff" style="background-color: #e8f5e9; height: 60px;"></div>
+        <span class="label">SOLUCIÓN:</span>
+        <div id="solution-staff" class="staff" style="background-color: #e0f8cf; height: 50px;"></div>
     </div>
     
-    <p id="status" style="text-align:center; font-weight: bold; min-height: 1.2em;"></p>
+    <p id="status"></p>
+	
 </div>
 
 <script>
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-let soundBuffer = null;
 
-const figures = { W: '𝅝', H: '𝅗𝅥', Q: '♩', E: '♪', S: '𝅘𝅥𝅯' };
-const values = { W: 4, H: 2, Q: 1, E: 0.5, S: 0.25 };
+/* Imágenes de personajes pixel-art
+const charImages = [
+    'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png', // Pikachu
+    'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/1.png',  // Bulbasaur
+    'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/4.png',  // Charmander
+    'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/7.png',  // Squirtle
+    'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/150.png' // Mewtwo
+];
+*/
 
-// Configuración de niveles: define qué notas están disponibles
+const charImages = [
+    'img/pepe.png',   
+	'img/wanda.png', 
+	'img/trancas.png', 
+];
+
+const victoryMessages = [
+    "¡Eres Mozart!", "¡Increíble!", "¡Qué ritmo!", "¡Perfecto!", "¡Brutal!", "¡A tope!"
+];
+
+const figures = { W: '𝅝', H: '𝅗𝅥', Q: '♩', E: '♪', T: '♪', S: '𝅘𝅥𝅯' };
+const values = { W: 4, H: 2, Q: 1, E: 0.5, T: 0.3333, S: 0.25 };
+
 const levels = {
-    1: ['W', 'H'],
-    2: ['W', 'H', 'Q'],
-    3: ['H', 'Q', 'E'],
-    4: ['Q', 'E'],
-    5: ['Q', 'E', 'S'],
-    6: ['E', 'S'],
-    7: ['W', 'H', 'Q', 'E', 'S']
+    1: ['W', 'H'], 2: ['W', 'H', 'Q'], 3: ['H', 'Q', 'E'],
+    4: ['Q', 'E'], 5: ['Q', 'E', 'S'], 6: ['Q', 'T'],
+    7: ['W', 'H', 'Q', 'E', 'T', 'S']
 };
 
 let solution = [];
 let userInput = [];
 let score = 0;
+let currentRound = 1;
+const maxRounds = 10;
 
-// --- CARGA DE SONIDO ---
-async function initAudio() {
-    try {
-        // Sustituye esta URL por tu archivo .wav real
-        const response = await fetch('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
-        const arrayBuffer = await response.arrayBuffer();
-        soundBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-        
-        document.getElementById('loading-msg').style.display = 'none';
-        document.getElementById('playBtn').disabled = false;
-    } catch (e) {
-        document.getElementById('loading-msg').textContent = "Error al cargar audio. Usa un servidor local.";
-        console.error(e);
+// MOTOR DE SONIDO PIANO (Síntesis)
+function playPiano(startTime, duration, freq = 440) {
+    const volume = parseFloat(document.getElementById('volControl').value);
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    
+    osc.type = 'triangle'; 
+    osc.frequency.setValueAtTime(freq, startTime);
+    
+    gain.gain.setValueAtTime(0, startTime);
+    gain.gain.linearRampToValueAtTime(volume, startTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+    
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    
+    osc.start(startTime);
+    osc.stop(startTime + duration);
+}
+
+// Sonidos de Feedback
+function playFeedbackSound(isSuccess) {
+    const now = audioCtx.currentTime;
+    if (isSuccess) {
+        // Sonido ascendente alegre
+        playPiano(now, 0.1, 523.25); // C5
+        playPiano(now + 0.1, 0.1, 659.25); // E5
+        playPiano(now + 0.2, 0.3, 783.99); // G5
+    } else {
+        // Sonido descendente triste
+        playPiano(now, 0.1, 220.00); // A3
+        playPiano(now + 0.1, 0.3, 110.00); // A2
     }
 }
 
-function playWav(startTime, duration) {
-    if (!soundBuffer) return;
-    const source = audioCtx.createBufferSource();
-    const gain = audioCtx.createGain();
-    
-    source.buffer = soundBuffer;
-    
-    gain.gain.setValueAtTime(1, startTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
-    
-    source.connect(gain);
-    gain.connect(audioCtx.destination);
-    
-    source.start(startTime);
-    source.stop(startTime + duration);
-}
+function playSolution() {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    let now = audioCtx.currentTime + 0.1;
+    let timeAcc = 0;
+    const bpm = parseInt(document.getElementById('bpmControl').value);
+    const pulseDuration = 60 / bpm; 
 
-// --- LÓGICA DEL JUEGO ---
+    solution.forEach(f => {
+        const noteDuration = values[f] * pulseDuration;
+        playPiano(now + timeAcc, noteDuration);
+        timeAcc += noteDuration;
+    });
+}
 
 function updateButtonAvailability() {
     const currentLevel = document.getElementById('difficulty').value;
     const allowed = levels[currentLevel];
-    
     Object.keys(figures).forEach(key => {
         document.getElementById('btn-' + key).disabled = !allowed.includes(key);
     });
@@ -241,15 +360,16 @@ function generateChallenge() {
     const currentLevel = document.getElementById('difficulty').value;
     const availableKeys = levels[currentLevel];
 
-    while(rem > 0) {
+    while(rem > 0.1) {
         let f = availableKeys[Math.floor(Math.random() * availableKeys.length)];
-        if(values[f] <= rem) { 
-            compas.push(f); 
-            rem -= values[f]; 
-        } else {
-            // Si la nota elegida no cabe, intentamos con la más pequeña disponible
+        if(f === 'T') {
+            if(rem >= 1) { compas.push('T', 'T', 'T'); rem -= 1; }
+            continue;
+        }
+        if(values[f] <= rem) { compas.push(f); rem -= values[f]; } 
+        else {
             const minVal = Math.min(...availableKeys.map(k => values[k]));
-            if (rem < minVal) break; // No cabe nada más
+            if (rem < minVal) break;
         }
     }
     return compas;
@@ -257,7 +377,7 @@ function generateChallenge() {
 
 function add(f) {
     let total = userInput.reduce((s, v) => s + values[v], 0);
-    if(total + values[f] <= 4) {
+    if(total + values[f] <= 4.01) {
         userInput.push(f);
         renderStaff('player-staff', userInput, true);
     }
@@ -272,64 +392,82 @@ function renderStaff(id, notes, showRemaining) {
     const el = document.getElementById(id);
     let html = '';
     let totalUsed = 0;
-
     notes.forEach(f => {
         const width = (values[f] / 4) * 100;
         totalUsed += values[f];
-        html += `<div class="note-slot" style="width: ${width}%"><span>${figures[f]}</span></div>`;
+        const tripletTag = (f === 'T') ? '<div class="triplet-mark">3</div>' : '';
+        html += `<div class="note-slot" style="width: ${width}%">${tripletTag}<span>${figures[f]}</span></div>`;
     });
-
-    if(showRemaining && totalUsed < 4) {
+    if(showRemaining && totalUsed < 3.9) {
         const remWidth = ((4 - totalUsed) / 4) * 100;
-        html += `<div class="empty-slot" style="width: ${remWidth}%">${(4-totalUsed).toFixed(2)} restantes</div>`;
+        html += `<div class="empty-slot" style="width: ${remWidth}%">${Math.max(0, 4-totalUsed).toFixed(1)}</div>`;
     }
-
     el.innerHTML = html;
-}
-
-function playSolution() {
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    
-    let now = audioCtx.currentTime + 0.1;
-    let timeAcc = 0;
-    const bpmFactor = 0.6; // Velocidad del juego
-
-    solution.forEach(f => {
-        playWav(now + timeAcc, (values[f] * bpmFactor) - 0.02);
-        timeAcc += values[f] * bpmFactor;
-    });
 }
 
 function check() {
     document.getElementById('solution-area').style.display = 'block';
     renderStaff('solution-staff', solution, false);
-    
     const isCorrect = JSON.stringify(solution) === JSON.stringify(userInput);
+    const feedbackBox = document.getElementById('feedback-box');
     const status = document.getElementById('status');
     
+    playFeedbackSound(isCorrect);
+
     if(isCorrect) {
         score += (100 * document.getElementById('difficulty').value);
-        status.textContent = "¡Excelente! Ritmo clavado.";
-        status.style.color = "var(--success)";
+        //status.textContent = "¡IMPECABLE!";
+        //status.style.color = "var(--accent-light)";
+        
+        const randomImg = charImages[Math.floor(Math.random() * charImages.length)];
+        const randomMsg = victoryMessages[Math.floor(Math.random() * victoryMessages.length)];
+        
+        feedbackBox.innerHTML = `
+            <div class="char-container">
+                <img src="${randomImg}" class="char-sprite-img">
+                <div class="speech-bubble">${randomMsg}</div>
+            </div>`;
     } else {
-        status.textContent = "El ritmo no coincide. ¡Inténtalo de nuevo!";
-        status.style.color = "var(--error)";
+        //status.textContent = "FUERA DE TIEMPO";
+        //status.style.color = "var(--error)";
+        feedbackBox.innerHTML = '<span style="font-size:30px">❌</span>';
     }
     document.getElementById('score').textContent = score;
+    document.getElementById('checkBtn').style.display = 'none';
+    document.getElementById('nextBtn').style.display = 'inline-block';
 }
 
 function nextRound() {
+    if(currentRound >= maxRounds) {
+        alert("¡CONCIERTO FINALIZADO!\nSCORE: " + score);
+        resetGame();
+        return;
+    }
+    currentRound++;
+    document.getElementById('round').textContent = currentRound;
+    setupRound();
+}
+
+function setupRound() {
     updateButtonAvailability();
     solution = generateChallenge();
     userInput = [];
     document.getElementById('solution-area').style.display = 'none';
     document.getElementById('status').textContent = "";
+    document.getElementById('feedback-box').innerHTML = "";
+    document.getElementById('checkBtn').style.display = 'inline-block';
+    document.getElementById('nextBtn').style.display = 'none';
     renderStaff('player-staff', userInput, true);
 }
 
-// Inicialización
-initAudio();
-nextRound();
+function resetGame() {
+    score = 0; currentRound = 1;
+    document.getElementById('score').textContent = "0";
+    document.getElementById('round').textContent = "1";
+    setupRound();
+}
+
+setupRound();
 </script>
 </body>
 </html>
