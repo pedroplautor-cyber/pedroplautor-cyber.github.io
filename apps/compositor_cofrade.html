@@ -7,10 +7,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #222;
+            --bg: #1a1a1a;
             --green: #00e436;
             --pink: #ff004d;
             --gold: #d4af37;
+            --sky: linear-gradient(to bottom, #2c3e50, #4ca1af);
         }
 
         body { 
@@ -25,6 +26,12 @@
             gap: 10px; margin-bottom: 15px;
         }
 
+        .io-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px; margin-bottom: 10px;
+        }
+
         select, textarea {
             background: #000; color: var(--green);
             border: 3px solid #5f574f; padding: 10px;
@@ -32,100 +39,156 @@
         }
 
         textarea { 
-            width: 100%; height: 100px; box-sizing: border-box;
-            font-family: monospace; font-size: 16px; margin-bottom: 15px;
-            line-height: 1.5;
+            width: 100%; height: 80px; box-sizing: border-box;
+            font-family: monospace; font-size: 16px; margin-bottom: 5px;
+            line-height: 1.5; text-transform: uppercase;
         }
 
-        .stage {
-            display: flex;
-            background: #ffffff;
+        /* ESCENARIO MEJORADO */
+        .stage-container {
+            position: relative;
+            background: var(--sky);
             border: 6px double var(--gold);
-            height: 160px;
-            align-items: flex-end;
-            justify-content: space-around;
-            padding: 10px;
+            height: 180px;
             margin-bottom: 20px;
-            border-radius: 4px;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+
+        .stage-floor {
+            position: absolute;
+            bottom: 0; width: 100%; height: 40px;
+            background: #555;
+            background-image: 
+                linear-gradient(45deg, #444 25%, transparent 25%), 
+                linear-gradient(-45deg, #444 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #444 75%),
+                linear-gradient(-45deg, transparent 75%, #444 75%);
+            background-size: 20px 20px;
+            border-top: 4px solid #333;
+            z-index: 1;
+        }
+
+        .orchestra-area {
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 12px;
+            padding: 0 10px 15px 10px;
+            z-index: 2;
+            height: 100%;
         }
 
         .musician {
             display: flex; flex-direction: column; align-items: center;
-            transition: transform 0.1s;
+            transition: transform 0.05s ease-out;
+            flex-shrink: 1;
         }
 
         .musician img {
-            width: 55px; height: 80px; object-fit: contain;
+            width: 45px; height: 75px; object-fit: contain;
             image-rendering: pixelated;
         }
 
-        .musician span { font-size: 8px; margin-top: 5px; color: #000; font-weight: bold; }
+        .musician span { 
+            font-size: 8px; margin-top: 5px; color: #fff; 
+            background: rgba(0,0,0,0.5); padding: 2px;
+        }
 
         .active {
             transform: translateY(-25px) scale(1.2);
-            filter: drop-shadow(0 15px 5px rgba(0,0,0,0.2));
+            filter: drop-shadow(0 15px 10px rgba(0,0,0,0.5));
         }
 
         button {
             background: var(--pink); color: #fff; border: 4px solid #000;
-            padding: 18px; cursor: pointer; font-family: 'Press Start 2P';
-            font-size: 12px; width: 100%; box-shadow: 0 6px 0 #800026;
+            padding: 15px; cursor: pointer; font-family: 'Press Start 2P';
+            font-size: 10px; width: 100%; box-shadow: 0 5px 0 #800026;
+            margin-bottom: 5px;
         }
-        button:active { transform: translateY(3px); box-shadow: 0 2px 0 #800026; }
+        button:active { transform: translateY(2px); box-shadow: 0 2px 0 #800026; }
+
+        .btn-io { background: #5f574f; font-size: 7px; padding: 8px; box-shadow: 0 3px 0 #333; }
         
-        .label-mini { font-size: 7px; margin-bottom: 5px; display: block; color: #aaa; }
+        .label-mini { font-size: 7px; margin-bottom: 5px; display: block; color: #aaa; text-align: left; }
+        .help { font-size: 7px; color: #888; margin-top: 10px; line-height: 1.4; }
     </style>
 </head>
 <body>
 
-    <h3 style="font-size: 14px; color: var(--gold); margin-bottom: 20px;">COMPOSITOR COFRADE</h3>
+    <h3 style="font-size: 14px; color: var(--gold); margin-bottom: 15px;">COMPOSITOR COFRADE</h3>
 
     <div class="controls">
         <div>
-            <span class="label-mini">ESTILO DE BANDA</span>
+            <span class="label-mini">ESTILO BANDA</span>
             <select id="bandType" onchange="updateMusicians()">
-                <option value="agrupacion">Agrupación Musical</option>
-                <option value="palio">Banda de Palio</option>
-                <option value="corneta">Cornetas y Tambores</option>
-                <option value="cabecera">Banda de Cabecera</option>
+                <option value="agrupacion">Agrupación</option>
+                <option value="palio">Palio</option>
+                <option value="corneta">CCTT</option>
+                <option value="cabecera">Cabecera</option>
             </select>
         </div>
         <div>
             <span class="label-mini">VELOCIDAD</span>
             <select id="bpm">
-                <option value="350">Ligera</option>
-                <option value="600">Lenta</option>
+                <option value="420">Ligera</option>
+                <option value="680">Lenta</option>
             </select>
         </div>
     </div>
 
-    <textarea id="code">DO1 RE1 MI1. | FA#2 SOLb1/2 | LA1. SI1/4</textarea>
-    <p style="font-size: 7px; color: #888; margin-bottom: 15px;">Notas: DO, DO#, REb. Duración: 1, 1/2, 1. (con puntillo). Usa | para separar.</p>
+    <textarea id="code" oninput="updateMusicians()">DO1 DO1 SOL1 SOL1 | LA1 LA1 SOL2 | _1 FA1 FA1 MI1 MI1 | RE1 RE1 DO2</textarea>
+    
+    <div class="io-buttons">
+        <button class="btn-io" onclick="exportMelody()">EXPORTAR</button>
+        <button class="btn-io" onclick="importMelody()">IMPORTAR</button>
+    </div>
 
-    <div class="stage" id="orchestra"></div>
+    <div class="stage-container">
+        <div class="orchestra-area" id="orchestra"></div>
+        <div class="stage-floor"></div>
+    </div>
 
-    <button onclick="playMusic()">TOCAR</button>
+    <button onclick="playMusic()">TOCAR MARCHA</button>
+
+    <div class="help">
+        _ = Silencio | +/- = Octavas | | = Separador visual
+    </div>
 
 <script>
-    const notesMap = {
-        "DO": 261.63, "DO#": 277.18, "REB": 277.18,
-        "RE": 293.66, "RE#": 311.13, "MIB": 311.13,
-        "MI": 329.63, "FAB": 329.63,
-        "FA": 349.23, "FA#": 369.99, "SOLB": 369.99,
-        "SOL": 392.00, "SOL#": 415.30, "LAB": 415.30,
-        "LA": 440.00, "LA#": 466.16, "SIB": 466.16,
-        "SI": 493.88, "DOB": 246.94
+    const baseFrequencies = {
+        "DO": 261.63, "DO#": 277.18, "REB": 277.18, "RE": 293.66, "RE#": 311.13, 
+        "MIB": 311.13, "MI": 329.63, "FAB": 329.63, "FA": 349.23, "FA#": 369.99, 
+        "SOLB": 369.99, "SOL": 392.00, "SOL#": 415.30, "LAB": 415.30, "LA": 440.00, 
+        "LA#": 466.16, "SIB": 466.16, "SI": 493.88, "DOB": 246.94
     };
+
+    function getFrequency(noteStr) {
+        if (noteStr === '_') return 0;
+        let name = noteStr.replace(/[+\-]/g, '');
+        let freq = baseFrequencies[name];
+        if (!freq) return null;
+        if (noteStr.includes('+')) return freq * 2;
+        if (noteStr.includes('-')) return freq / 2;
+        return freq;
+    }
 
     function updateMusicians() {
         const stage = document.getElementById('orchestra');
         const band = document.getElementById('bandType').value;
-        stage.innerHTML = '';
+        const code = document.getElementById('code').value.toUpperCase();
         
-        ["DO", "RE", "MI", "FA", "SOL", "LA", "SI"].forEach(n => {
+        const usedNotes = [...new Set(code.match(/[A-Z]+[#B]?[+\-]?/g) || [])];
+        usedNotes.sort((a, b) => getFrequency(a) - getFrequency(b));
+
+        stage.innerHTML = '';
+        usedNotes.forEach(n => {
             stage.innerHTML += `
                 <div class="musician" id="m-${n}">
-                    <img src="musico_${band}.png" onerror="this.src='https://via.placeholder.com/60/800000/FFFFFF?text=${band[0].toUpperCase()}'">                    
+                    <img src="musico_${band}.png" onerror="this.src='https://via.placeholder.com/45/800000/FFFFFF?text=${band[0].toUpperCase()}'">                    
                     <span>${n}</span>
                 </div>`;
         });
@@ -133,78 +196,72 @@
 
     let audioCtx = null;
 
-    function playNote(freq, name, durationSec) {
-        if (!audioCtx) return;
+    function playNote(freq, noteID, durationSec) {
+        if (!audioCtx || freq === 0) return;
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
+        const playTime = durationSec * 0.85;
 
         osc.type = 'square';
         osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-        
         gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + durationSec);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + playTime);
 
         osc.connect(gain);
         gain.connect(audioCtx.destination);
 
-        // Limpiar nombre para iluminar músico base (ej: FA# -> FA)
-        const baseNote = name.substring(0, 2).replace('#', '').replace('B', '');
-        const el = document.getElementById(`m-${baseNote}`);
-        if (el) el.classList.add('active');
+        const el = document.getElementById(`m-${noteID}`);
+        if (el) {
+            el.classList.remove('active');
+            void el.offsetWidth; 
+            el.classList.add('active');
+        }
 
         osc.start();
-        osc.stop(audioCtx.currentTime + durationSec);
-
-        setTimeout(() => {
-            if (el) el.classList.remove('active');
-        }, durationSec * 1000);
+        osc.stop(audioCtx.currentTime + playTime);
+        setTimeout(() => { if (el) el.classList.remove('active'); }, playTime * 1000);
     }
 
     async function playMusic() {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
         
-        const input = document.getElementById('code').value.toUpperCase();
-        const sequence = input.replace(/\|/g, ' ').split(/\s+/).filter(x => x.length > 0);
-        
+        const sequence = document.getElementById('code').value.toUpperCase()
+                          .replace(/\|/g, ' ').split(/\s+/).filter(x => x.length > 0);
         const baseSpeed = parseInt(document.getElementById('bpm').value);
         let timeOffset = 0;
 
         sequence.forEach((item) => {
-            // Regex: Captura nota (incluye # o B), luego duración (números o fracción), luego opcional puntillo (.)
-            const match = item.match(/^([A-Z]+[#B]?)([\d\/]*)(\.?) सौर$/i);
-            
-            // Intentamos una captura más simple si la compleja falla por el formato
-            const simpleMatch = item.match(/^([A-Z]+[#B]?)([^.]*)(\.?) सौर$/i) || 
-                               item.match(/^([A-Z]+[#B]?)([\d\/]*)(\.?)$/);
-            
-            if (!simpleMatch) return;
+            const match = item.match(/^([A-Z]+[#B]?[+\-]?|_)([\d\/]*)(\.?)$/);
+            if (!match) return;
 
-            const noteName = simpleMatch[1];
-            let rawDuration = simpleMatch[2] || "1";
-            const hasDot = simpleMatch[3] === ".";
+            const noteID = match[1];
+            let rawDur = match[2] || "1";
+            let mult = rawDur.includes('/') ? (parseFloat(rawDur.split('/')[0])/parseFloat(rawDur.split('/')[1])) : (parseFloat(rawDur)||1);
+            if (match[3] === ".") mult *= 1.5;
             
-            let multiplier = 1;
-            if (rawDuration.includes('/')) {
-                const [num, den] = rawDuration.split('/');
-                multiplier = parseFloat(num) / parseFloat(den);
-            } else {
-                multiplier = parseFloat(rawDuration) || 1;
-            }
+            const durMs = baseSpeed * mult;
+            const freq = getFrequency(noteID);
 
-            // Aplicar puntillo (aumenta 50%)
-            if (hasDot) multiplier *= 1.5;
-            
-            const freq = notesMap[noteName];
-            if (freq) {
-                const durationInSec = (baseSpeed / 1000) * multiplier;
-                
-                setTimeout(() => {
-                    playNote(freq, noteName, durationInSec);
-                }, timeOffset);
-                
-                timeOffset += (baseSpeed * multiplier);
+            if (noteID !== '_') {
+                setTimeout(() => playNote(freq, noteID, durMs/1000), timeOffset);
             }
+            timeOffset += durMs;
         });
+    }
+
+    function exportMelody() {
+        const code = document.getElementById('code').value;
+        navigator.clipboard.writeText(code);
+        alert("¡Melodía copiada al portapapeles!");
+    }
+
+    function importMelody() {
+        const code = prompt("Pega aquí el código de la melodía:");
+        if (code) {
+            document.getElementById('code').value = code;
+            updateMusicians();
+        }
     }
 
     updateMusicians();
