@@ -24,74 +24,107 @@
         }
 
         h3 { font-size: 14px; color: var(--gold); margin: 10px 0; }
-
-        .controls, .file-ops {
-            display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px;
+        
+        .title-input {
+            width: 100%; background: #000; border: 2px solid var(--gold);
+            color: var(--gold); font-family: 'Press Start 2P';
+            padding: 10px; font-size: 10px; margin-bottom: 10px; text-align: center;
         }
 
+        .hidden { display: none !important; }
+
+        /* CONTROLES EDICIÓN */
+        .controls, .file-ops { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
         .bpm-control {
             background: #000; border: 3px solid #5f574f; padding: 12px;
             display: flex; flex-direction: column; gap: 10px; font-size: 9px;
         }
-
         input[type=range] { width: 100%; height: 25px; accent-color: var(--green); }
-
         .select-row, .file-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-
+        .file-buttons { grid-template-columns: 1fr 1fr 1fr; }
         select {
-            background: #000; color: var(--green);
-            border: 3px solid #5f574f; padding: 10px;
-            font-family: 'Press Start 2P'; font-size: 9px; width: 100%;
+            background: #000; color: var(--green); border: 3px solid #5f574f; 
+            padding: 10px; font-family: 'Press Start 2P'; font-size: 9px; width: 100%;
         }
 
         #editor {
             display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px;
-            max-height: 250px; overflow-y: auto; background: #000; padding: 5px; border: 3px solid #5f574f;
+            max-height: 200px; overflow-y: auto; background: #000; padding: 5px; border: 3px solid #5f574f;
         }
 
         .measure-row {
             display: flex; align-items: center; gap: 5px; background: #222; padding: 5px;
             border-left: 6px solid #5f574f;
         }
-
         .measure-row.complete { border-left-color: var(--green); }
         .measure-row.overflow { border-left-color: var(--pink); }
-
         .measure-input {
             flex-grow: 1; background: transparent; border: none; color: var(--green);
             font-family: monospace; font-size: 14px; outline: none; text-transform: uppercase;
         }
-
         .measure-counter { font-size: 8px; min-width: 45px; color: #888; }
-        
-        .row-btn {
-            background: #444; color: white; border: 2px solid #000;
-            padding: 5px; font-size: 8px; cursor: pointer; font-family: 'Press Start 2P';
-        }
-        .btn-del { background: #800026; }
+        .row-btn { background: #444; color: white; border: 2px solid #000; padding: 8px 5px; font-size: 8px; cursor: pointer; font-family: 'Press Start 2P'; }
         .btn-play-row { background: #005a00; }
+        .btn-del { background: #800026; }
 
+        /* VISTA REPRODUCCIÓN (KARAOKE) */
+        #playback-view {
+            background: #000; border: 4px solid #333;
+            height: 250px; margin-bottom: 10px; padding: 10px;
+            display: flex; flex-direction: column;
+        }
+
+        /* MARCO ESTILO CUADRO */
+        .title-frame {
+            border: 6px double var(--gold);
+            background: #111;
+            padding: 12px;
+            margin-bottom: 15px;
+            box-shadow: inset 0 0 10px #000, 0 4px 10px rgba(0,0,0,0.5);
+            position: relative;
+        }
+        #pb-status { font-size: 7px; color: var(--pink); margin-bottom: 8px; letter-spacing: 1px; }
+        #pb-title { font-size: 11px; color: #fff; text-shadow: 2px 2px #000; line-height: 1.4; }
+
+        #notes-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-content: flex-start;
+            gap: 12px;
+            padding: 10px;
+            scroll-behavior: smooth;
+        }
+
+        .k-note {
+            font-size: 15px; color: #333; transition: all 0.1s;
+            text-shadow: 1px 1px #000;
+        }
+        .k-note.active {
+            color: var(--gold); transform: scale(1.25);
+            text-shadow: 0 0 8px var(--gold);
+        }
+
+        /* ESCENARIO */
         .stage-container {
             position: relative; background: var(--sky); border: 4px double var(--gold);
             height: 140px; margin-bottom: 10px; border-radius: 8px; overflow: hidden;
             display: flex; flex-direction: column; justify-content: flex-end;
         }
-
         .stage-floor {
             position: absolute; bottom: 0; width: 100%; height: 25px;
             background: #444; background-image: linear-gradient(45deg, #333 25%, transparent 25%), linear-gradient(-45deg, #333 25%, transparent 25%);
             background-size: 15px 15px; border-top: 2px solid #222; z-index: 1;
         }
-
         .orchestra-area {
             display: flex; align-items: flex-end; justify-content: center;
             gap: 8px; padding: 0 5px 10px 5px; z-index: 2; height: 100%; overflow-x: auto;
         }
-
         .musician { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; transition: transform 0.1s; }
         .musician img { width: 35px; height: 55px; object-fit: contain; image-rendering: pixelated; }
         .musician span { font-size: 6px; margin-top: 2px; color: #fff; background: rgba(0,0,0,0.7); padding: 1px; border: 1px solid var(--gold); }
-        
         .active { transform: translateY(-15px) scale(1.1); }
 
         .btn-group { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; margin-top: 5px; }
@@ -106,45 +139,58 @@
 </head>
 <body>
 
-    <h3>🎵 COMPOSITOR COFRADE 🎵</h3>
+    <h3 id="main-title">🎵 COMPOSITOR COFRADE 🎵</h3>
 
-    <div class="controls">
-        <div class="bpm-control">
-            <span>VELOCIDAD: <span id="bpmValue">120</span> BPM</span>
-            <input type="range" id="bpm" min="40" max="160" value="120" oninput="document.getElementById('bpmValue').innerText = this.value">
+    <div id="ui-edit">
+        <input type="text" id="march-title" class="title-input" placeholder="TÍTULO DE LA MARCHA..." value="MARCHA SIN TÍTULO">
+        
+        <div class="controls">
+            <div class="bpm-control">
+                <span>VELOCIDAD: <span id="bpmValue">120</span> BPM</span>
+                <input type="range" id="bpm" min="40" max="160" value="120" oninput="document.getElementById('bpmValue').innerText = this.value">
+            </div>
+            <div class="select-row">
+                <select id="bandType" onchange="updateMusicians()">
+                    <option value="agrupacion">A.Musical</option>
+                    <option value="palio">Palio</option>
+                    <option value="corneta">CCTT</option>
+                    <option value="cabecera">Banda Cabecera</option>
+                </select>
+                <select id="percStyle">
+                    <option value="lenta">Lenta</option>
+                    <option value="ligera">Ligera</option>
+                    <option value="none">Sin perc.</option>
+                </select>
+            </div>
         </div>
-        <div class="select-row">
-            <select id="bandType" onchange="updateMusicians()">
-                <option value="agrupacion">A.Musical</option>
-                <option value="palio">Palio</option>
-                <option value="corneta">CCTT</option>
-				<option value="cabecera">Banda Cabecera</option>
-            </select>
-            <select id="percStyle">
-                <option value="lenta">Lenta</option>
-                <option value="ligera">Ligera</option>
-                <option value="none">Sin perc.</option>
-            </select>
+
+        <div id="editor">
+            <div class="measure-row">
+                <button class="row-btn btn-play-row" onclick="playMeasure(this.parentElement)">▶</button>
+                <input class="measure-input" value="RE41/4 MI41/4 FA41/4 SOL41/4 FA#42 _2" oninput="validateAll()">
+                <span class="measure-counter">4/4</span>
+                <button class="row-btn btn-del" onclick="this.parentElement.remove(); validateAll();">X</button>
+            </div>
+        </div>
+
+        <button onclick="addMeasure()" style="padding:8px; margin-bottom:10px; background:var(--green); color:black; width:100%; font-size:8px; font-family:'Press Start 2P'; cursor:pointer; border:2px solid #000;">+ AÑADIR COMPÁS</button>
+
+        <div class="file-ops">
+            <div class="file-buttons">
+                <button class="btn-file" onclick="exportToTxt()">💾 EXPORTAR</button>
+                <button class="btn-file" onclick="copyToClipboard()">📋 COPIAR</button>
+                <button class="btn-file" onclick="document.getElementById('importFile').click()">📂 IMPORTAR</button>
+            </div>
+            <input type="file" id="importFile" style="display:none" accept=".txt" onchange="importFromTxt(this)">
         </div>
     </div>
 
-    <div id="editor">
-        <div class="measure-row">
-            <button class="row-btn btn-play-row" onclick="playMeasure(this.parentElement)">▶</button>
-            <input class="measure-input" value="RE41/4 MI41/4 FA41/4 SOL41/4 FA#42 _2" oninput="validateAll()">
-            <span class="measure-counter">4/4</span>
-            <button class="row-btn btn-del" onclick="this.parentElement.remove(); validateAll();">X</button>
+    <div id="playback-view" class="hidden">
+        <div class="title-frame">
+            <div id="pb-status">REPRODUCIENDO:</div>
+            <div id="pb-title">MARCHA COFRADE</div>
         </div>
-    </div>
-
-    <button onclick="addMeasure()" style="padding:8px; margin-bottom:10px; background:var(--green); color:black; width:100%; box-shadow:none; font-size:8px;">+ AÑADIR COMPÁS</button>
-
-    <div class="file-ops">
-        <div class="file-buttons">
-            <button class="btn-file" onclick="exportToTxt()">💾 EXPORTAR TXT</button>
-            <button class="btn-file" onclick="document.getElementById('importFile').click()">📂 IMPORTAR TXT</button>
-        </div>
-        <input type="file" id="importFile" style="display:none" accept=".txt" onchange="importFromTxt(this)">
+        <div id="notes-container"></div>
     </div>
 
     <div class="stage-container">
@@ -153,7 +199,7 @@
     </div>
 
     <div class="btn-group">
-        <button onclick="playMusic()">📯 PLAY TODO</button>
+        <button id="play-all-btn" onclick="playMusic()">📯 PLAY TODO</button>
         <button style="background:#5f574f; box-shadow: 0 4px 0 #333;" onclick="stopMusic()">⏹ STOP</button>
     </div>
 
@@ -163,7 +209,7 @@
         "MI": 329.63, "FA": 349.23, "FA#": 369.99, "SOLB": 369.99, "SOL": 392.00, 
         "SOL#": 415.30, "LAB": 415.30, "LA": 440.00, "LA#": 466.16, "SIB": 466.16, "SI": 493.88
     };
-
+    const noteOrder = ["DO", "DO#", "REB", "RE", "RE#", "MIB", "MI", "FA", "FA#", "SOLB", "SOL", "SOL#", "LAB", "LA", "LA#", "SIB", "SI"];
     let audioCtx = null;
     let animationTimeouts = [];
 
@@ -186,6 +232,26 @@
             for(let i=0; i < dotsMatch[0].length; i++) { extra /= 2; beats += extra; }
         }
         return beats;
+    }
+
+    function parseNote(token) {
+        if (token.startsWith('_')) {
+            const bpm = document.getElementById('bpm').value;
+            const beats = getNoteBeats(token);
+            return { freq: 0, name: "REST", duration: (60/bpm) * beats, beats: beats, original: token };
+        }
+        const nameMatch = token.match(/[A-Z]+#?/);
+        if (!nameMatch) return null;
+        const name = nameMatch[0];
+        const octMod = (token.match(/[<>]/g) || []).join('');
+        let octave = 4;
+        if (octMod.includes('<')) octave--;
+        if (octMod.includes('>')) octave++;
+        const bpm = document.getElementById('bpm').value;
+        const beats = getNoteBeats(token);
+        const duration = (60/bpm) * beats;
+        const freq = noteFrequencies[name] ? noteFrequencies[name] * Math.pow(2, octave - 4) : 0;
+        return { freq, name, duration, beats, original: token };
     }
 
     function validateAll() {
@@ -218,26 +284,6 @@
         return div;
     }
 
-    function parseNote(token) {
-        if (token.startsWith('_')) {
-            const bpm = document.getElementById('bpm').value;
-            const beats = getNoteBeats(token);
-            return { freq: 0, name: "REST", duration: (60/bpm) * beats, beats: beats };
-        }
-        const nameMatch = token.match(/[A-Z]+#?/);
-        if (!nameMatch) return null;
-        const name = nameMatch[0];
-        const octMod = (token.match(/[<>]/g) || []).join('');
-        let octave = 4;
-        if (octMod.includes('<')) octave--;
-        if (octMod.includes('>')) octave++;
-        const bpm = document.getElementById('bpm').value;
-        const beats = getNoteBeats(token);
-        const duration = (60/bpm) * beats;
-        const freq = noteFrequencies[name] ? noteFrequencies[name] * Math.pow(2, octave - 4) : 0;
-        return { freq, name, duration, beats };
-    }
-
     function updateMusicians() {
         const stage = document.getElementById('orchestra');
         const band = document.getElementById('bandType').value;
@@ -249,10 +295,12 @@
                 if (parsed && parsed.freq > 0) uniqueNotes.add(parsed.name);
             });
         });
-        stage.innerHTML = `<div class="musician" id="m-PERC"><img src="musico_${band}_percusion.png" onerror="this.src='https://via.placeholder.com/60/d4af37/FFFFFF?text=🥁'"><span>PERC</span></div>`;
-        uniqueNotes.forEach(n => {
-            stage.innerHTML += `<div class="musician" id="m-${n}"><img src="musico_${band}.png" onerror="this.src='https://via.placeholder.com/60/d4af37/FFFFFF?text=🎺'"><span>${n}</span></div>`;
+        const sortedNotes = Array.from(uniqueNotes).sort((a, b) => noteOrder.indexOf(a) - noteOrder.indexOf(b));
+        let html = `<div class="musician" id="m-PERC"><img src="musico_${band}_percusion.png" onerror="this.src='https://via.placeholder.com/60/d4af37/FFFFFF?text=🥁'"><span>PERC</span></div>`;
+        sortedNotes.forEach(n => {
+            html += `<div class="musician" id="m-${n}"><img src="musico_${band}.png" onerror="this.src='https://via.placeholder.com/60/d4af37/FFFFFF?text=🎺'"><span>${n}</span></div>`;
         });
+        stage.innerHTML = html;
     }
 
     function stopMusic() {
@@ -260,133 +308,65 @@
         animationTimeouts.forEach(t => clearTimeout(t));
         animationTimeouts = [];
         document.querySelectorAll('.musician').forEach(el => el.classList.remove('active'));
+        document.getElementById('ui-edit').classList.remove('hidden');
+        document.getElementById('playback-view').classList.add('hidden');
+        document.getElementById('main-title').innerText = "🎵 COMPOSITOR COFRADE 🎵";
     }
 
-    function __triggerPercussion(time, type) {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        
-        if(type === "bombo") {
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(80, time);
-            osc.frequency.exponentialRampToValueAtTime(30, time + 0.1);
-            gain.gain.setValueAtTime(0.4, time);
-            gain.gain.exponentialRampToValueAtTime(0.01, time + 0.15);
-        } else {
-            osc.type = 'square';
-            osc.frequency.setValueAtTime(180, time);
-            osc.frequency.exponentialRampToValueAtTime(50, time + 0.08);
-            gain.gain.setValueAtTime(0.1, time);
-            gain.gain.exponentialRampToValueAtTime(0.01, time + 0.08);
+    function playNoteOnly(noteObj, startTime, kId = null) {
+        if (!noteObj) return;
+        if (noteObj.freq > 0) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle'; 
+            osc.frequency.setValueAtTime(noteObj.freq, startTime);
+            gain.gain.setValueAtTime(0, startTime);
+            gain.gain.linearRampToValueAtTime(0.15, startTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.01, startTime + noteObj.duration);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(startTime); osc.stop(startTime + noteObj.duration);
         }
+        const t = setTimeout(() => {
+            const mus = document.getElementById(`m-${noteObj.name}`);
+            if (mus) { mus.classList.add('active'); setTimeout(() => mus.classList.remove('active'), noteObj.duration * 900); }
+            if (kId) {
+                const knote = document.getElementById(`k-${kId}`);
+                if (knote) {
+                    knote.classList.add('active');
+                    knote.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    setTimeout(() => knote.classList.remove('active'), noteObj.duration * 900);
+                }
+            }
+        }, Math.max(0, (startTime - audioCtx.currentTime) * 1000));
+        animationTimeouts.push(t);
+    }
 
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.start(time); osc.stop(time + 0.2);
-
+    function triggerPercussion(time, type) {
+        if (!audioCtx) return;
+        const bufferSize = audioCtx.sampleRate * 0.1;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        const noise = audioCtx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = audioCtx.createBiquadFilter();
+        const gain = audioCtx.createGain();
+        if (type === "bombo") {
+            filter.type = "lowpass"; filter.frequency.setValueAtTime(500, time);
+            gain.gain.setValueAtTime(0.3, time);
+        } else {
+            filter.type = "highpass"; filter.frequency.setValueAtTime(2000, time);
+            gain.gain.setValueAtTime(0.1, time);
+        }
+        gain.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
+        noise.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+        noise.start(time); noise.stop(time + 0.1);
         const el = document.getElementById('m-PERC');
         if (el) {
             const t = setTimeout(() => {
                 el.classList.add('active');
-                setTimeout(() => el.classList.remove('active'), 60);
-            }, (time - audioCtx.currentTime) * 1000);
-            animationTimeouts.push(t);
-        }
-    }
-	
-	
-	function triggerPercussion(time, type) {
-		// 1. Crear el buffer de ruido blanco (0.1 segundos de duración)
-		const bufferSize = audioCtx.sampleRate * 0.1;
-		const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-		const data = buffer.getChannelData(0);
-		for (let i = 0; i < bufferSize; i++) {
-			data[i] = Math.random() * 2 - 1;
-		}
-
-		const noise = audioCtx.createBufferSource();
-		noise.buffer = buffer;
-
-		// 2. Configurar el filtro y la ganancia
-		const filter = audioCtx.createBiquadFilter();
-		const gain = audioCtx.createGain();
-		
-		// Adaptación de tipos: "bombo" actúa como el golpe fuerte (isStrong)
-		if (type === "bombo") {
-			filter.type = "lowpass";
-			filter.frequency.setValueAtTime(500, time);
-			gain.gain.setValueAtTime(0.3, time);
-		} else {
-			filter.type = "highpass";
-			filter.frequency.setValueAtTime(2000, time);
-			gain.gain.setValueAtTime(0.1, time);
-		}
-
-		// Envolvente de amplitud común
-		gain.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
-
-		// 3. Conexiones
-		noise.connect(filter);
-		filter.connect(gain);
-		gain.connect(audioCtx.destination);
-
-		// 4. Ejecución
-		noise.start(time);
-		noise.stop(time + 0.1);
-
-		// 5. Animación visual adaptada
-		const el = document.getElementById('m-PERC');
-		if (el) {
-			const t = setTimeout(() => {
-				const cls = (type === "bombo") ? 'active-strong' : 'active';
-				el.classList.add(cls);
-				setTimeout(() => el.classList.remove(cls), 100);
-			}, Math.max(0, (time - audioCtx.currentTime) * 1000));
-			animationTimeouts.push(t);
-		}
-	}
-		
-	
-
-    // Lógica de percusión separada para que siga el compás real
-    function schedulePercussion(totalBeats, startTime) {
-        const style = document.getElementById('percStyle').value;
-        if (style === 'none') return;
-        
-        const bpm = document.getElementById('bpm').value;
-        const beatDur = 60 / bpm;
-
-        for (let b = 0; b < totalBeats; b++) {
-            const hitTime = startTime + (b * beatDur);
-            const beatInMeasure = b % 4;
-            let type = "caja";
-
-            if (style === "lenta") {
-                type = (beatInMeasure === 0) ? "bombo" : "caja";
-            } else if (style === "ligera") {
-                type = (beatInMeasure === 0 || beatInMeasure === 2) ? "bombo" : "caja";
-            }
-            triggerPercussion(hitTime, type);
-        }
-    }
-
-    function playNoteOnly(noteObj, startTime) {
-        if (!noteObj || noteObj.freq === 0) return;
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'triangle'; 
-        osc.frequency.setValueAtTime(noteObj.freq, startTime);
-        gain.gain.setValueAtTime(0, startTime);
-        gain.gain.linearRampToValueAtTime(0.15, startTime + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.01, startTime + noteObj.duration);
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.start(startTime); osc.stop(startTime + noteObj.duration);
-        
-        const el = document.getElementById(`m-${noteObj.name}`);
-        if (el) {
-            const t = setTimeout(() => {
-                el.classList.add('active');
-                setTimeout(() => el.classList.remove('active'), noteObj.duration * 900);
-            }, (startTime - audioCtx.currentTime) * 1000);
+                setTimeout(() => el.classList.remove('active'), 100);
+            }, Math.max(0, (time - audioCtx.currentTime) * 1000));
             animationTimeouts.push(t);
         }
     }
@@ -396,54 +376,84 @@
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const now = audioCtx.currentTime + 0.1;
         const tokens = row.querySelector('.measure-input').value.toUpperCase().split(/\s+/).filter(x => x.length > 0);
-        
         let offset = 0;
-        let totalMeasureBeats = 0;
+        let totalBeats = 0;
         tokens.forEach(t => {
             const n = parseNote(t);
-            if (n) {
-                playNoteOnly(n, now + offset);
-                offset += n.duration;
-                totalMeasureBeats += n.beats;
-            }
+            if (n) { playNoteOnly(n, now + offset); offset += n.duration; totalBeats += n.beats; }
         });
-        // Programar percusión independiente
-        schedulePercussion(Math.ceil(totalMeasureBeats), now);
+        const bpm = document.getElementById('bpm').value;
+        const style = document.getElementById('percStyle').value;
+        if (style !== 'none') {
+            const beatDur = 60 / bpm;
+            for (let b = 0; b < Math.ceil(totalBeats); b++) {
+                let pType = (style === "lenta") ? (b%4===0 ? "bombo":"caja") : (b%2===0 ? "bombo":"caja");
+                triggerPercussion(now + (b * beatDur), pType);
+            }
+        }
     }
 
-    async function playMusic() {
+    function playMusic() {
         stopMusic();
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const now = audioCtx.currentTime + 0.1;
         const inputs = document.querySelectorAll('.measure-input');
         
+        document.getElementById('ui-edit').classList.add('hidden');
+        document.getElementById('pb-title').innerText = document.getElementById('march-title').value;
+        const container = document.getElementById('notes-container');
+        container.innerHTML = "";
+        document.getElementById('playback-view').classList.remove('hidden');
+        document.getElementById('main-title').innerText = "✨ EN DIRECTO ✨";
+
         let timeOffset = 0;
-        let totalBeatsAcc = 0;
-        
+        let noteCounter = 0;
         inputs.forEach(input => {
             const tokens = input.value.toUpperCase().split(/\s+/).filter(x => x.length > 0);
-            let measureBeats = 0;
+            let mBeats = 0;
             tokens.forEach(token => {
                 const noteObj = parseNote(token);
-                if (noteObj) { 
-                    playNoteOnly(noteObj, now + timeOffset); 
-                    timeOffset += noteObj.duration; 
-                    measureBeats += noteObj.beats;
+                if (noteObj) {
+                    const id = `n-${noteCounter++}`;
+                    const span = document.createElement('span');
+                    span.className = 'k-note';
+                    span.id = `k-${id}`;
+                    span.innerText = noteObj.original;
+                    container.appendChild(span);
+                    playNoteOnly(noteObj, now + timeOffset, id);
+                    timeOffset += noteObj.duration;
+                    mBeats += noteObj.beats;
                 }
             });
-            // Programamos la percusión por cada compás completo
-            schedulePercussion(measureBeats, now + (timeOffset - (measureBeats * (60/document.getElementById('bpm').value))));
+            const bpm = document.getElementById('bpm').value;
+            const style = document.getElementById('percStyle').value;
+            if (style !== 'none') {
+                const beatDur = 60 / bpm;
+                const startTimeM = now + (timeOffset - (mBeats * beatDur));
+                for (let b = 0; b < Math.ceil(mBeats); b++) {
+                    let pType = (style === "lenta") ? (b%4===0 ? "bombo":"caja") : (b%2===0 ? "bombo":"caja");
+                    triggerPercussion(startTimeM + (b * beatDur), pType);
+                }
+            }
         });
     }
 
     function exportToTxt() {
+        const title = document.getElementById('march-title').value;
         const rows = Array.from(document.querySelectorAll('.measure-input')).map(i => i.value);
-        const content = rows.join('\n');
+        const content = [title, ...rows].join('\n');
         const blob = new Blob([content], { type: 'text/plain' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = 'marcha_cofrade.txt';
+        a.download = `${title.replace(/\s+/g, '_')}.txt`;
         a.click();
+    }
+
+    function copyToClipboard() {
+        const title = document.getElementById('march-title').value;
+        const rows = Array.from(document.querySelectorAll('.measure-input')).map(i => i.value);
+        const content = [title, ...rows].join('\n');
+        navigator.clipboard.writeText(content).then(() => alert("¡Copiado!"));
     }
 
     function importFromTxt(input) {
@@ -452,10 +462,11 @@
         const reader = new FileReader();
         reader.onload = function(e) {
             const lines = e.target.result.split('\n');
-            document.getElementById('editor').innerHTML = "";
-            lines.forEach(line => {
-                if (line.trim()) addMeasure(line.trim());
-            });
+            if (lines.length > 0) {
+                document.getElementById('march-title').value = lines[0].trim();
+                document.getElementById('editor').innerHTML = "";
+                lines.slice(1).forEach(line => { if (line.trim()) addMeasure(line.trim()); });
+            }
         };
         reader.readAsText(file);
     }
