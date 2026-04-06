@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Compositor Cofrade Duo Ultra</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #1a1a1a;
+            --green: #00e436;
+            --pink: #ff004d;
+            --gold: #d4af37;
+            --sky: linear-gradient(45deg, #1a1a1a, #2a2a2a, #1a1a1a);
+            --note-color: rgba(212, 175, 55, 0.2);
+        }
+        * { touch-action: manipulation; box-sizing: border-box; }
+        body { 
+            font-family: 'Press Start 2P', cursive; 
+            background: var(--bg); color: #fff;
+            margin: 0; padding: 10px; text-align: center;
+            overflow-x: hidden;
+        }
+        h3 { font-size: 14px; color: var(--gold); margin: 10px 0; }
+        .title-input {
+            width: 100%; background: #000; border: 2px solid var(--gold);
+            color: var(--gold); font-family: 'Press Start 2P';
+            padding: 10px; font-size: 10px; margin-bottom: 10px; text-align: center;
+        }
+        .hidden { display: none !important; }
+        .controls, .file-ops { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+        .bpm-control {
+            background: #000; border: 3px solid #5f574f; padding: 12px;
+            display: flex; flex-direction: column; gap: 10px; font-size: 9px;
+        }
+        input[type=range] { width: 100%; height: 25px; accent-color: var(--green); }
+        .select-row, .file-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .file-buttons { grid-template-columns: 1fr 1fr 1fr; }
+        select {
+            background: #000; color: var(--green); border: 3px solid #5f574f; 
+            padding: 10px; font-family: 'Press Start 2P'; font-size: 9px; width: 100%;
+        }
+        #editor {
+            display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px;
+            max-height: 250px; overflow-y: auto; background: #000; padding: 5px; border: 3px solid #5f574f;
+        }
+        .measure-row {
+            display: flex; align-items: center; gap: 5px; background: #222; padding: 5px;
+            border-left: 6px solid #5f574f;
+        }
+        .measure-row.complete { border-left-color: var(--green); }
+        .measure-row.overflow { border-left-color: var(--pink); }
+        .measure-input {
+            flex-grow: 1; background: transparent; border: none; color: var(--green);
+            font-family: monospace; font-size: 14px; outline: none; text-transform: uppercase;
+        }
+        .measure-counter { font-size: 8px; min-width: 55px; color: #888; }
+        .row-btn { background: #444; color: white; border: 2px solid #000; padding: 8px 5px; font-size: 8px; cursor: pointer; font-family: 'Press Start 2P'; }
+        
+        #playback-view {
+            background: #000; border: 4px solid #333;
+            height: 200px; margin-bottom: 10px; padding: 10px;
+            display: flex; flex-direction: column;
+        }
+        .title-frame { border: 4px double var(--gold); background: #111; padding: 8px; margin-bottom: 10px; }
+        #pb-title { font-size: 10px; color: #fff; }
+        #notes-container {
+            flex-grow: 1; overflow-y: auto; display: flex;
+            flex-wrap: wrap; justify-content: center; align-content: flex-start;
+            gap: 10px; padding: 5px;
+        }
+        .k-note { font-size: 12px; color: #444; transition: transform 0.1s; }
+        .k-note.active { color: var(--gold); transform: scale(1.0); text-shadow: 0 0 5px var(--gold); z-index: 10; }
+        
+        /* --- ESCENARIO CON VISUALIZADOR --- */
+        .stage-container {
+            position: relative; 
+            background: linear-gradient(45deg, #ff00ff, #00ffff, #ffea00, #ff004d, #00e436);
+            background-size: 400% 400%;
+            animation: psycho 10s linear infinite;
+            border: 4px double var(--gold);
+            height: 220px;
+            margin-bottom: 10px; border-radius: 8px; overflow: hidden;
+            display: flex; flex-direction: column; justify-content: flex-end;
+            transition: box-shadow 0.3s ease;
+        }
+
+        /* Resplandor suave de la nota */
+        .stage-container.playing {
+            box-shadow: inset 0 0 60px var(--note-color);
+        }
+
+        @keyframes psycho {
+            0% { background-position: 0% 0%; }
+            100% { background-position: 100% 100%; }
+        }
+
+        /* Contenedor de las barras de frecuencia */
+        .visualizer {
+            position: absolute;
+            top: 20px;
+            left: 0;
+            width: 100%;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            gap: 4px;
+            padding: 0 20px;
+            pointer-events: none;
+        }
+
+        .v-bar {
+            flex: 1;
+            max-width: 15px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            transition: height 0.1s ease, background 0.3s ease;
+            border-top: 2px solid #fff;
+        }
+
+        .orchestra-area { 
+            display: flex; 
+            align-items: flex-end; 
+            justify-content: center;
+            gap: 20px;
+            padding-bottom: 10px; 
+            z-index: 2; 
+        }
+        .musician img { 
+            width: 100px; height: 140px;
+            object-fit: contain; image-rendering: pixelated; 
+        }
+        /* ----------------------- */
+
+        .musician.active { transform: translateY(-15px); }
+        .btn-group { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; }
+        button { background: var(--pink); color: #fff; border: 4px solid #000; padding: 10px; cursor: pointer; font-family: 'Press Start 2P'; font-size: 9px; }
+    </style>
+</head>
+<body>
+
+    <h3 id="main-title">🎵 COMPOSITOR DUO ULTRA 🎵</h3>
+
+    <div id="ui-edit">
+        <input type="text" id="march-title" class="title-input" value="MARCHA ACORDES">
+        <div class="controls">
+            <div class="bpm-control">
+                <span>BPM: <span id="bpmValue">120</span></span>
+                <input type="range" id="bpm" min="40" max="160" value="120" oninput="document.getElementById('bpmValue').innerText = this.value">
+            </div>
+            <div class="select-row">
+                <select id="timeSignature" onchange="validateAll()">
+                    <option value="4/4">4/4</option><option value="3/4">3/4</option>
+                    <option value="2/4">2/4</option><option value="6/8">6/8</option>
+                </select>
+            </div>
+        </div>
+        <div id="editor">
+            <div class="measure-row">
+                <button class="row-btn" onclick="playMeasure(this.parentElement)">▶</button>
+                <input class="measure-input" value="[DO4 MI4 SOL4]1/2 [FA4 LA4 DO5]1/2" oninput="validateAll()">
+                <span class="measure-counter">0/4</span>
+                <button class="row-btn" onclick="this.parentElement.remove(); validateAll();">X</button>
+            </div>
+        </div>
+        <button onclick="addMeasure()" style="width:100%; margin-bottom:10px; background:var(--green);">+ AÑADIR COMPÁS</button>
+        <div class="file-ops">
+            <div class="file-buttons">
+                <button onclick="exportToTxt()">💾</button>
+                <button onclick="copyToClipboard()">📋</button>
+                <button onclick="document.getElementById('importFile').click()">📂</button>
+            </div>
+            <input type="file" id="importFile" style="display:none" onchange="importFromTxt(this)">
+        </div>
+    </div>
+
+    <div id="playback-view" class="hidden">
+        <div class="title-frame"><div id="pb-title"></div></div>
+        <div id="notes-container"></div>
+    </div>
+
+    <div class="stage-container" id="stage">
+        <div class="visualizer" id="visualizer">
+            </div>
+        <div class="orchestra-area">
+            <div class="musician" id="m-PERC"><img src="percusion.png"></div>
+            <div class="musician" id="m-MELODY"><img src="melodia.png"></div>
+        </div>
+    </div>
+
+    <div class="btn-group">
+        <button onclick="playMusic()">📯 PLAY</button>
+        <button onclick="stopMusic()" style="background:#555;">⏹ STOP</button>
+    </div>
+
+<script>
+    const noteFrequencies = {
+        "DO": 261.63, "DO#": 277.18, "REB": 277.18, "RE": 293.66, "RE#": 311.13, "MIB": 311.13,
+        "MI": 329.63, "FA": 349.23, "FA#": 369.99, "SOLB": 369.99, "SOL": 392.00, 
+        "SOL#": 415.30, "LAB": 415.30, "LA": 440.00, "LA#": 466.16, "SIB": 466.16, "SI": 493.88
+    };
+
+    const noteColors = {
+        "DO": "#ff0000", "DO#": "#ff4500", "RE": "#ffff00", "RE#": "#bfff00", "MI": "#00ff00",
+        "FA": "#00ffff", "FA#": "#0000ff", "SOL": "#4b0082", "SOL#": "#8a2be2", "LA": "#ff00ff",
+        "LA#": "#ff1493", "SI": "#dc143c"
+    };
+
+    const notesList = ["DO", "DO#", "RE", "RE#", "MI", "FA", "FA#", "SOL", "SOL#", "LA", "LA#", "SI"];
+    
+    // Crear barras en el visualizador
+    const visualizer = document.getElementById('visualizer');
+    notesList.forEach(n => {
+        const bar = document.createElement('div');
+        bar.className = 'v-bar';
+        bar.id = `bar-${n}`;
+        visualizer.appendChild(bar);
+    });
+
+    let audioCtx = null;
+    let animationTimeouts = [];
+    const stage = document.getElementById('stage');
+
+    function getTargetBeats() {
+        const sig = document.getElementById('timeSignature').value;
+        return sig === "6/8" ? 3 : parseInt(sig.split('/')[0]);
+    }
+
+    function getNoteBeats(token) {
+        if (!token || token === '|') return 0;
+        const cleanToken = token.replace(/^[<>]+/, '').replace(/-$/, '').replace(/[\[\]]/g, '');
+        const durMatch = cleanToken.match(/(1\/4|1\/2|1|2|4|8)(\.*)$/);
+        let beats = 1; 
+        if (durMatch) {
+            const d = durMatch[1];
+            if (d === '1') beats = 4;
+            else if (d === '2') beats = 2;
+            else if (d === '4') beats = 1;
+            else if (d === '1/2') beats = 0.5;
+            else if (d === '1/4') beats = 0.25;
+            else if (d === '8') beats = 0.125;
+            if (durMatch[2]) {
+                let extra = beats;
+                for(let i=0; i<durMatch[2].length; i++) { extra /= 2; beats += extra; }
+            }
+        }
+        return beats;
+    }
+
+    function parseNote(token) {
+        if (!token || token === '|') return null;
+        const bpm = document.getElementById('bpm').value;
+        const isTied = token.endsWith('-');
+        const cleanToken = token.replace(/-$/, '');
+        const downOct = (cleanToken.match(/</g) || []).length;
+        const upOct = (cleanToken.match(/>/g) || []).length;
+        let octave = 4 - downOct + upOct;
+
+        if (cleanToken.includes('_')) {
+            const beats = getNoteBeats(cleanToken);
+            return { freq: 0, duration: (60/bpm)*beats, beats, isTied, original: token, name: "REST" };
+        }
+
+        const nameMatch = cleanToken.match(/[A-Z]+#?/);
+        if (!nameMatch) return null;
+        const name = nameMatch[0].replace('B',''); // Normalizar para visualizador
+        const beats = getNoteBeats(cleanToken);
+        const freq = noteFrequencies[name] ? noteFrequencies[name] * Math.pow(2, octave - 4) : 0;
+        
+        return { freq, duration: (60/bpm)*beats, beats, isTied, original: token, name: name };
+    }
+
+    function tokenizePart(text) {
+        const result = [];
+        const regex = /\[([^\]]+)\](\S+)?|\(([^)]+)\)|(\S+)/g;
+        let match;
+        while ((match = regex.exec(text.toUpperCase())) !== null) {
+            if (match[1]) {
+                const notesInChord = match[1].trim().split(/\s+/);
+                const chordDurationToken = match[2] || "4";
+                const chordBeats = getNoteBeats("X" + chordDurationToken);
+                const bpm = document.getElementById('bpm').value;
+                result.push({
+                    isChord: true,
+                    notes: notesInChord.map(n => parseNote(n)),
+                    beats: chordBeats,
+                    duration: (60/bpm) * chordBeats,
+                    original: `[${match[1]}]${chordDurationToken}`
+                });
+            } else if (match[3]) {
+                const triplet = match[3].trim().split(/\s+/);
+                triplet.forEach(t => {
+                    const n = parseNote(t);
+                    if (n) { n.beats *= (2/3); n.duration *= (2/3); result.push(n); }
+                });
+            } else if (match[4] && match[4] !== '|') {
+                const n = parseNote(match[4]);
+                if (n) result.push(n);
+            }
+        }
+        return result;
+    }
+
+    function applyTies(notes) {
+        const tiedNotes = [];
+        for (let i = 0; i < notes.length; i++) {
+            let current = { ...notes[i] };
+            if (current.isChord) { tiedNotes.push(current); continue; }
+            while (current.isTied && i + 1 < notes.length) {
+                const next = notes[i + 1];
+                if (next.isChord) break;
+                current.duration += next.duration;
+                current.beats += next.beats;
+                current.isTied = next.isTied;
+                current.original += " " + next.original;
+                i++;
+            }
+            tiedNotes.push(current);
+        }
+        return tiedNotes;
+    }
+
+    function playNote(note, start, isHarmony = false, id = null) {
+        if (!note) return;
+        
+        if (note.isChord) {
+            note.notes.forEach(n => {
+                if(n) playNote({...n, duration: note.duration}, start, isHarmony, id);
+            });
+            return;
+        }
+
+        if (note.freq === 0) return;
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(note.freq, start);
+        g.gain.setValueAtTime(0, start);
+        g.gain.linearRampToValueAtTime(isHarmony ? 0.07 : 0.15, start + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.001, start + note.duration);
+        osc.connect(g); g.connect(audioCtx.destination);
+        osc.start(start); osc.stop(start + note.duration);
+
+        const t = setTimeout(() => {
+            const m = isHarmony ? null : document.getElementById('m-MELODY');
+            if (m) m.classList.add('active');
+            
+            // Visualizador y Resplandor
+            const bar = document.getElementById(`bar-${note.name}`);
+            if (bar) {
+                const color = noteColors[note.name] || '#fff';
+                bar.style.height = '60px';
+                bar.style.background = color;
+                if (!isHarmony) {
+                    stage.style.setProperty('--note-color', color + '44'); // Color con alpha
+                    stage.classList.add('playing');
+                }
+                setTimeout(() => {
+                    bar.style.height = '4px';
+                    bar.style.background = 'rgba(255, 255, 255, 0.2)';
+                    if (!isHarmony) stage.classList.remove('playing');
+                }, note.duration * 900);
+            }
+
+            if (m) setTimeout(() => m.classList.remove('active'), note.duration * 800);
+            
+            if (id) {
+                const kn = document.getElementById(id);
+                if (kn) { 
+                    kn.classList.add('active'); kn.scrollIntoView({behavior:'smooth', block:'center'}); 
+                    setTimeout(() => kn.classList.remove('active'), note.duration * 900); 
+                }
+            }
+        }, (start - audioCtx.currentTime) * 1000);
+        animationTimeouts.push(t);
+    }
+
+    function triggerPerc(time, type) {
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        const isBombo = type === "bombo";
+        osc.frequency.setValueAtTime(isBombo ? 60 : 200, time);
+        osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.1);
+        g.gain.setValueAtTime(isBombo ? 0.4 : 0.2, time);
+        g.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
+        osc.connect(g); g.connect(audioCtx.destination);
+        osc.start(time); osc.stop(time + 0.1);
+        setTimeout(() => {
+            const p = document.getElementById('m-PERC');
+            p.classList.add('active'); setTimeout(() => p.classList.remove('active'), 100);
+        }, (time - audioCtx.currentTime) * 1000);
+    }
+
+    function stopMusic() {
+        if (audioCtx) audioCtx.close();
+        audioCtx = null;
+        animationTimeouts.forEach(clearTimeout);
+        stage.classList.remove('playing');
+        document.querySelectorAll('.v-bar').forEach(b => { b.style.height='4px'; b.style.background='rgba(255,255,255,0.2)'; });
+        document.getElementById('ui-edit').classList.remove('hidden');
+        document.getElementById('playback-view').classList.add('hidden');
+    }
+
+    function playMusic() {
+        stopMusic();
+        audioCtx = new AudioContext();
+        const now = audioCtx.currentTime + 0.1;
+        const rows = document.querySelectorAll('.measure-input');
+        const bpm = document.getElementById('bpm').value;
+        const beatDur = 60/bpm;
+
+        document.getElementById('ui-edit').classList.add('hidden');
+        document.getElementById('playback-view').classList.remove('hidden');
+        document.getElementById('pb-title').innerText = document.getElementById('march-title').value;
+        const container = document.getElementById('notes-container');
+        container.innerHTML = "";
+
+        let allMelody = [];
+        let allHarmony = [];
+
+        rows.forEach(row => {
+            const [m, h] = row.value.split('|');
+            allMelody = allMelody.concat(tokenizePart(m));
+            if (h) allHarmony = allHarmony.concat(tokenizePart(h));
+        });
+
+        const finalMelody = applyTies(allMelody);
+        const finalHarmony = applyTies(allHarmony);
+
+        let mOff = 0;
+        finalMelody.forEach((n, i) => {
+            const id = `kn-${i}`;
+            const span = document.createElement('span');
+            span.className = 'k-note'; span.id = id; span.innerText = n.original;
+            container.appendChild(span);
+            playNote(n, now + mOff, false, id);
+            mOff += n.duration;
+        });
+
+        let hOff = 0;
+        finalHarmony.forEach(n => {
+            playNote(n, now + hOff, true);
+            hOff += n.duration;
+        });
+
+        const targetBeats = getTargetBeats();
+        for(let i=0; i < rows.length * targetBeats; i++) {
+            triggerPerc(now + (i * beatDur), i % targetBeats === 0 ? "bombo" : "caja");
+        }
+    }
+
+    // Funciones de utilidad se mantienen igual
+    function validateAll() {
+        document.querySelectorAll('.measure-row').forEach(row => {
+            const input = row.querySelector('.measure-input');
+            const counter = row.querySelector('.measure-counter');
+            const melody = tokenizePart(input.value.split('|')[0]);
+            const total = melody.reduce((acc, n) => acc + n.beats, 0);
+            counter.innerText = total.toFixed(2).replace('.00','') + "/" + getTargetBeats();
+            row.classList.toggle('complete', Math.abs(total - getTargetBeats()) < 0.01);
+            row.classList.toggle('overflow', total > getTargetBeats() + 0.01);
+        });
+    }
+
+    function addMeasure(content = "") {
+        const div = document.createElement('div');
+        div.className = 'measure-row';
+        div.innerHTML = `<button class="row-btn" onclick="playMeasure(this.parentElement)">▶</button>
+            <input class="measure-input" value="${content}" oninput="validateAll()">
+            <span class="measure-counter">0/4</span>
+            <button class="row-btn" onclick="this.parentElement.remove(); validateAll();">X</button>`;
+        document.getElementById('editor').appendChild(div);
+        validateAll();
+    }
+
+    function playMeasure(row) {
+        stopMusic();
+        audioCtx = new AudioContext();
+        const now = audioCtx.currentTime + 0.1;
+        const [m, h] = row.querySelector('.measure-input').value.split('|');
+        const melody = applyTies(tokenizePart(m));
+        let off = 0;
+        melody.forEach(n => { playNote(n, now + off); off += n.duration; });
+        if (h) {
+            let hoff = 0;
+            applyTies(tokenizePart(h)).forEach(n => { playNote(n, now + hoff, true); hoff += n.duration; });
+        }
+        const targetBeats = getTargetBeats();
+        for(let i=0; i<targetBeats; i++) triggerPerc(now + (i*(60/document.getElementById('bpm').value)), i===0?"bombo":"caja");
+    }
+
+    function exportToTxt() {
+        const title = document.getElementById('march-title').value;
+        const bpm = document.getElementById('bpm').value;
+        const ts = document.getElementById('timeSignature').value;
+        let content = `${title}|BPM:${bpm}|TS:${ts}\n`;
+        document.querySelectorAll('.measure-input').forEach(input => {
+            content += input.value + "\n";
+        });
+        const blob = new Blob([content], {type:'text/plain'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${title}.txt`;
+        a.click();
+    }
+
+    function copyToClipboard() {
+        const title = document.getElementById('march-title').value;
+        const bpm = document.getElementById('bpm').value;
+        const ts = document.getElementById('timeSignature').value;
+        let content = `${title}|BPM:${bpm}|TS:${ts}\n`;
+        document.querySelectorAll('.measure-input').forEach(input => {
+            content += input.value + "\n";
+        });
+        navigator.clipboard.writeText(content).then(() => alert("Copiado al portapapeles"));
+    }
+
+    function importFromTxt(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const lines = e.target.result.split('\n');
+            const header = lines[0].split('|');
+            if (header.length >= 3) {
+                document.getElementById('march-title').value = header[0];
+                document.getElementById('bpm').value = header[1].split(':')[1];
+                document.getElementById('bpmValue').innerText = document.getElementById('bpm').value;
+                document.getElementById('timeSignature').value = header[2].split(':')[1];
+            }
+            document.getElementById('editor').innerHTML = "";
+            for (let i = 1; i < lines.length; i++) {
+                if (lines[i].trim()) addMeasure(lines[i].trim());
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    validateAll();
+</script>
+</body>
+</html>
