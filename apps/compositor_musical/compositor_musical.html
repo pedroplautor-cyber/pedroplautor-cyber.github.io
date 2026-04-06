@@ -72,7 +72,6 @@
         .k-note { font-size: 12px; color: #444; transition: transform 0.1s; }
         .k-note.active { color: var(--gold); transform: scale(1.0); text-shadow: 0 0 5px var(--gold); z-index: 10; }
         
-        /* --- ESCENARIO CON VISUALIZADOR --- */
         .stage-container {
             position: relative; 
             background: linear-gradient(45deg, #ff00ff, #00ffff, #ffea00, #ff004d, #00e436);
@@ -85,7 +84,6 @@
             transition: box-shadow 0.3s ease;
         }
 
-        /* Resplandor suave de la nota */
         .stage-container.playing {
             box-shadow: inset 0 0 60px var(--note-color);
         }
@@ -95,7 +93,6 @@
             100% { background-position: 100% 100%; }
         }
 
-        /* Contenedor de las barras de frecuencia */
         .visualizer {
             position: absolute;
             top: 20px;
@@ -131,7 +128,6 @@
             width: 100px; height: 140px;
             object-fit: contain; image-rendering: pixelated; 
         }
-        /* ----------------------- */
 
         .musician.active { transform: translateY(-15px); }
         .btn-group { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; }
@@ -143,11 +139,11 @@
     <h3 id="main-title">🎵 COMPOSITOR DUO ULTRA 🎵</h3>
 
     <div id="ui-edit">
-        <input type="text" id="march-title" class="title-input" value="MARCHA ACORDES">
+        <input type="text" id="march-title" class="title-input" value="DEMO TECNICA">
         <div class="controls">
             <div class="bpm-control">
-                <span>BPM: <span id="bpmValue">120</span></span>
-                <input type="range" id="bpm" min="40" max="160" value="120" oninput="document.getElementById('bpmValue').innerText = this.value">
+                <span>BPM: <span id="bpmValue">100</span></span>
+                <input type="range" id="bpm" min="40" max="160" value="100" oninput="document.getElementById('bpmValue').innerText = this.value">
             </div>
             <div class="select-row">
                 <select id="timeSignature" onchange="validateAll()">
@@ -157,19 +153,13 @@
             </div>
         </div>
         <div id="editor">
-            <div class="measure-row">
-                <button class="row-btn" onclick="playMeasure(this.parentElement)">▶</button>
-                <input class="measure-input" value="[DO4 MI4 SOL4]1/2 [FA4 LA4 DO5]1/2" oninput="validateAll()">
-                <span class="measure-counter">0/4</span>
-                <button class="row-btn" onclick="this.parentElement.remove(); validateAll();">X</button>
             </div>
-        </div>
         <button onclick="addMeasure()" style="width:100%; margin-bottom:10px; background:var(--green);">+ AÑADIR COMPÁS</button>
         <div class="file-ops">
             <div class="file-buttons">
-                <button onclick="exportToTxt()">💾</button>
-                <button onclick="copyToClipboard()">📋</button>
-                <button onclick="document.getElementById('importFile').click()">📂</button>
+                <button onclick="exportToTxt()">💾 EXPORTAR</button>
+                <button onclick="copyToClipboard()">📋 COPIAR</button>
+                <button onclick="document.getElementById('importFile').click()">📂 IMPORTAR</button>
             </div>
             <input type="file" id="importFile" style="display:none" onchange="importFromTxt(this)">
         </div>
@@ -181,8 +171,7 @@
     </div>
 
     <div class="stage-container" id="stage">
-        <div class="visualizer" id="visualizer">
-            </div>
+        <div class="visualizer" id="visualizer"></div>
         <div class="orchestra-area">
             <div class="musician" id="m-PERC"><img src="percusion.png"></div>
             <div class="musician" id="m-MELODY"><img src="melodia.png"></div>
@@ -208,8 +197,6 @@
     };
 
     const notesList = ["DO", "DO#", "RE", "RE#", "MI", "FA", "FA#", "SOL", "SOL#", "LA", "LA#", "SI"];
-    
-    // Crear barras en el visualizador
     const visualizer = document.getElementById('visualizer');
     notesList.forEach(n => {
         const bar = document.createElement('div');
@@ -264,7 +251,7 @@
 
         const nameMatch = cleanToken.match(/[A-Z]+#?/);
         if (!nameMatch) return null;
-        const name = nameMatch[0].replace('B',''); // Normalizar para visualizador
+        const name = nameMatch[0].replace('B','');
         const beats = getNoteBeats(cleanToken);
         const freq = noteFrequencies[name] ? noteFrequencies[name] * Math.pow(2, octave - 4) : 0;
         
@@ -276,7 +263,7 @@
         const regex = /\[([^\]]+)\](\S+)?|\(([^)]+)\)|(\S+)/g;
         let match;
         while ((match = regex.exec(text.toUpperCase())) !== null) {
-            if (match[1]) {
+            if (match[1]) { // ACORDES
                 const notesInChord = match[1].trim().split(/\s+/);
                 const chordDurationToken = match[2] || "4";
                 const chordBeats = getNoteBeats("X" + chordDurationToken);
@@ -286,15 +273,20 @@
                     notes: notesInChord.map(n => parseNote(n)),
                     beats: chordBeats,
                     duration: (60/bpm) * chordBeats,
+                    isTied: (match[2] || "").endsWith('-'),
                     original: `[${match[1]}]${chordDurationToken}`
                 });
-            } else if (match[3]) {
+            } else if (match[3]) { // TRESILLOS
                 const triplet = match[3].trim().split(/\s+/);
                 triplet.forEach(t => {
                     const n = parseNote(t);
-                    if (n) { n.beats *= (2/3); n.duration *= (2/3); result.push(n); }
+                    if (n) { 
+                        n.beats *= (2/3); 
+                        n.duration *= (2/3); 
+                        result.push(n); 
+                    }
                 });
-            } else if (match[4] && match[4] !== '|') {
+            } else if (match[4] && match[4] !== '|') { // NOTAS SIMPLES
                 const n = parseNote(match[4]);
                 if (n) result.push(n);
             }
@@ -303,17 +295,32 @@
     }
 
     function applyTies(notes) {
+        if (notes.length === 0) return [];
         const tiedNotes = [];
         for (let i = 0; i < notes.length; i++) {
             let current = { ...notes[i] };
-            if (current.isChord) { tiedNotes.push(current); continue; }
+            // Si es un acorde, procesamos sus notas internas si tienen ligadura
+            if (current.isChord) {
+                // Simplificación: la ligadura del acorde afecta a todo el bloque
+                while (current.isTied && i + 1 < notes.length) {
+                    const next = notes[i+1];
+                    current.duration += next.duration;
+                    current.beats += next.beats;
+                    current.isTied = next.isTied;
+                    i++;
+                }
+                tiedNotes.push(current);
+                continue;
+            }
+
+            // Ligadura de notas simples
             while (current.isTied && i + 1 < notes.length) {
                 const next = notes[i + 1];
                 if (next.isChord) break;
                 current.duration += next.duration;
                 current.beats += next.beats;
                 current.isTied = next.isTied;
-                current.original += " " + next.original;
+                current.original += " (lig)";
                 i++;
             }
             tiedNotes.push(current);
@@ -346,14 +353,13 @@
             const m = isHarmony ? null : document.getElementById('m-MELODY');
             if (m) m.classList.add('active');
             
-            // Visualizador y Resplandor
             const bar = document.getElementById(`bar-${note.name}`);
             if (bar) {
                 const color = noteColors[note.name] || '#fff';
                 bar.style.height = '60px';
                 bar.style.background = color;
                 if (!isHarmony) {
-                    stage.style.setProperty('--note-color', color + '44'); // Color con alpha
+                    stage.style.setProperty('--note-color', color + '44');
                     stage.classList.add('playing');
                 }
                 setTimeout(() => {
@@ -368,11 +374,12 @@
             if (id) {
                 const kn = document.getElementById(id);
                 if (kn) { 
-                    kn.classList.add('active'); kn.scrollIntoView({behavior:'smooth', block:'center'}); 
+                    kn.classList.add('active'); 
+                    kn.scrollIntoView({behavior:'smooth', block:'center'}); 
                     setTimeout(() => kn.classList.remove('active'), note.duration * 900); 
                 }
             }
-        }, (start - audioCtx.currentTime) * 1000);
+        }, Math.max(0, (start - audioCtx.currentTime) * 1000));
         animationTimeouts.push(t);
     }
 
@@ -389,7 +396,7 @@
         setTimeout(() => {
             const p = document.getElementById('m-PERC');
             p.classList.add('active'); setTimeout(() => p.classList.remove('active'), 100);
-        }, (time - audioCtx.currentTime) * 1000);
+        }, Math.max(0, (time - audioCtx.currentTime) * 1000));
     }
 
     function stopMusic() {
@@ -407,9 +414,7 @@
         audioCtx = new AudioContext();
         const now = audioCtx.currentTime + 0.1;
         const rows = document.querySelectorAll('.measure-input');
-        const bpm = document.getElementById('bpm').value;
-        const beatDur = 60/bpm;
-
+        
         document.getElementById('ui-edit').classList.add('hidden');
         document.getElementById('playback-view').classList.remove('hidden');
         document.getElementById('pb-title').innerText = document.getElementById('march-title').value;
@@ -445,12 +450,13 @@
         });
 
         const targetBeats = getTargetBeats();
+        const bpm = document.getElementById('bpm').value;
+        const beatDur = 60/bpm;
         for(let i=0; i < rows.length * targetBeats; i++) {
             triggerPerc(now + (i * beatDur), i % targetBeats === 0 ? "bombo" : "caja");
         }
     }
 
-    // Funciones de utilidad se mantienen igual
     function validateAll() {
         document.querySelectorAll('.measure-row').forEach(row => {
             const input = row.querySelector('.measure-input');
@@ -533,11 +539,21 @@
             for (let i = 1; i < lines.length; i++) {
                 if (lines[i].trim()) addMeasure(lines[i].trim());
             }
+            validateAll();
         };
         reader.readAsText(file);
     }
 
-    validateAll();
+    // CARGA DE CANCIÓN POR DEFECTO
+    window.onload = () => {
+        const defaultSong = [
+            "DO RE (MI FA SOL) | [DO MI SOL]2 _2",
+            "DO RE- RE SOL",            
+        ];
+        defaultSong.forEach(m => addMeasure(m));
+        validateAll();
+    };
+
 </script>
 </body>
 </html>
