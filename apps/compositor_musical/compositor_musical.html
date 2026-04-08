@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Compositor Cofrade Duo Ultra</title>
+    <title>Compositor Musical</title>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -182,7 +182,7 @@
 </head>
 <body>
 
-<h3>🎵 COMPOSITOR DUO ULTRA 🎵</h3>
+<h3>🎵 COMPOSITOR MUSICAL 🎵</h3>
 
 <div id="ui-edit">
     <input type="text" id="march-title" class="title-input" value="DEMO TECNICA">
@@ -272,24 +272,35 @@
 <div id="playback-screen" class="hidden">
     <canvas id="particle-canvas"></canvas>
     <div id="note-flash"></div>
-    <div id="pb-song-title"></div>
+    
     <div id="note-display">
+	
+		<div id="pb-song-title"></div>
+	
         <div id="current-note-name">—</div>
-        <div id="beat-track"></div>
+        <div id="beat-track"></div>	
+		<div id="pb-stage">
+			<div class="pb-musician" id="pb-PERC">
+				<img src="percusion.png" onerror="this.parentElement.innerHTML='<div style=\'font-size:44px\'>🥁</div><div class=musician-label>PERC</div>'">
+				<div class="musician-label">PERC</div>
+			</div>
+			<div class="pb-musician" id="pb-MELODY">
+				<img src="melodia.png" onerror="this.parentElement.innerHTML='<div style=\'font-size:44px\'>🎺</div><div class=musician-label>MELODÍA</div>'">
+				<div class="musician-label">MELODÍA</div>
+			</div>
+		</div>				
     </div>
-    <div id="notes-scroll-wrap"><div id="notes-scroll"></div></div>
-    <div id="pb-visualizer"></div>
-    <div id="pb-stage">
-        <div class="pb-musician" id="pb-PERC">
-            <img src="percusion.png" onerror="this.parentElement.innerHTML='<div style=\'font-size:44px\'>🥁</div><div class=musician-label>PERC</div>'">
-            <div class="musician-label">PERC</div>
-        </div>
-        <div class="pb-musician" id="pb-MELODY">
-            <img src="melodia.png" onerror="this.parentElement.innerHTML='<div style=\'font-size:44px\'>🎺</div><div class=musician-label>MELODÍA</div>'">
-            <div class="musician-label">MELODÍA</div>
-        </div>
-    </div>
-    <button id="pb-stop-btn" onclick="stopMusic()">⏹ STOP</button>
+	
+    <div id="notes-scroll-wrap"><div id="notes-scroll"></div></div>    
+	<div id="pb-visualizer"></div>
+    
+
+	<div class="btn-group">
+		<button onclick="playMusic()">📯 PLAY</button>
+		<button onclick="stopMusic()" style="background:#333;">⏹ STOP</button>
+	</div>
+
+
 </div>
 
 <script>
@@ -557,9 +568,91 @@ function playNote(note,start,isHarmony=false,scrollIdx=null){
     if(!isHarmony)scheduleVisual(note,start,scrollIdx);
 }
 
-function scheduleVisual(note,start,scrollIdx){
+function scheduleVisual(note, start, scrollIdx) {
+    if (!audioCtx) return;
+    const delay = Math.max(0, (start - audioCtx.currentTime) * 1000);
+    
+    // Obtenemos el nombre "sucio" (ej: "DO#4" o ">MI8")
+    let rawName = note.isChord ? (note.notes[0] && note.notes[0].name) : note.name;
+    
+    // Limpiamos para obtener solo la nota base (DO, DO#, etc.) para las barras
+    // Eliminamos números, símbolos de octava y duración
+    let cleanNoteName = rawName ? rawName.replace(/[0-9<>._\-]/g, '') : '';
+    
+    const color = NOTE_COLORS[cleanNoteName] || '#ffffff';
+
+    const t = setTimeout(() => {
+        // --- Efecto de Flash ---
+        const fl = document.getElementById('note-flash');
+        if (fl) {
+            fl.style.background = color;
+            fl.style.opacity = '0.2';
+            setTimeout(() => fl.style.opacity = '0', 80);
+        }
+
+        // --- Texto de la nota actual ---
+        const ne = document.getElementById('current-note-name');
+        if (ne) {
+            if (note.isRest) {
+                ne.textContent = '·';
+                ne.style.color = '#222';
+                ne.style.textShadow = 'none';
+            } else {
+                ne.textContent = rawName;
+                ne.style.color = color;
+                ne.style.textShadow = `0 0 40px ${color}, 0 0 80px ${color}`;
+            }
+        }
+
+        // --- BARRAS DEL VISUALIZADOR (La corrección clave) ---
+        const pb = document.getElementById(`pbbar-${cleanNoteName}`);
+        if (pb) {
+            pb.style.height = '48px';
+            pb.style.background = color;
+            pb.style.boxShadow = `0 0 15px ${color}`;
+            // El tiempo que se queda arriba depende de la duración de la nota
+            setTimeout(() => {
+                pb.style.height = '3px';
+                pb.style.background = 'rgba(255,255,255,0.12)';
+                pb.style.boxShadow = 'none';
+            }, Math.max(100, note.duration * 900)); 
+        }
+
+        // --- Mini visualizador (Escena de edición) ---
+        const mv = document.getElementById(`vbar-${cleanNoteName}`);
+        if (mv) {
+            mv.style.height = '44px';
+            mv.style.background = color;
+            setTimeout(() => {
+                mv.style.height = '3px';
+                mv.style.background = 'rgba(255,255,255,0.2)';
+            }, Math.max(100, note.duration * 900));
+        }
+
+        // --- Animación de los Músicos ---
+        ['me-MELODY', 'pb-MELODY'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.classList.add('active');
+                setTimeout(() => el.classList.remove('active'), 100);
+            }
+        });
+
+        if (scrollIdx !== null) advanceScroll(scrollIdx);
+        if (!note.isRest) burst(color, false);
+    }, delay);
+    
+    animTimeouts.push(t);
+}
+
+
+function old_scheduleVisual(note,start,scrollIdx){
     const delay=Math.max(0,(start-audioCtx.currentTime)*1000);
-    const noteName=note.isChord?(note.notes[0]&&note.notes[0].name):note.name;
+    
+	//const noteName=note.isChord?(note.notes[0]&&note.notes[0].name):note.name;
+	const noteName=note.isChord?(note.notes[0]&&note.notes[0].original):note.original;
+	console.log(JSON.stringify(note))
+	
     const color=NOTE_COLORS[noteName]||'#ffffff';
     const t=setTimeout(()=>{
         // Flash
@@ -569,7 +662,10 @@ function scheduleVisual(note,start,scrollIdx){
         const ne=document.getElementById('current-note-name');
         if(ne){
             if(note.isRest){ne.textContent='·';ne.style.color='#222';ne.style.textShadow='none';}
-            else{ne.textContent=noteName;ne.style.color=color;ne.style.textShadow=`0 0 40px ${color},0 0 80px ${color}`;}
+            else{
+				ne.textContent=noteName;
+				ne.style.color=color;ne.style.textShadow=`0 0 40px ${color},0 0 80px ${color}`;
+			}
         }
         // Barras PB
         const pb=document.getElementById(`pbbar-${noteName}`);
@@ -665,7 +761,7 @@ function playMusic(){
     scroll.innerHTML='';scroll.style.transform='translateX(0)';
     fm.forEach((n,i)=>{
         const sp=document.createElement('span');sp.className='scroll-note';
-        sp.textContent=n.isChord?`[${n.notes.map(x=>x.name).join('+')}]`:(n.isRest?'·':n.name);
+        sp.textContent=n.isChord?`[${n.notes.map(x=>x.original).join('+')}]`:(n.isRest?'·':n.original);
         scroll.appendChild(sp);
     });
     // Melodía
