@@ -7,553 +7,743 @@
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #1a1a1a;
+            --bg: #0a0a0a;
             --green: #00e436;
             --pink: #ff004d;
             --gold: #d4af37;
-            --sky: linear-gradient(45deg, #1a1a1a, #2a2a2a, #1a1a1a);
-            --note-color: rgba(212, 175, 55, 0.2);
+            --cyan: #00fff0;
         }
         * { touch-action: manipulation; box-sizing: border-box; }
-        body { 
-            font-family: 'Press Start 2P', cursive; 
+        body {
+            font-family: 'Press Start 2P', cursive;
             background: var(--bg); color: #fff;
             margin: 0; padding: 10px; text-align: center;
             overflow-x: hidden;
         }
-        h3 { font-size: 14px; color: var(--gold); margin: 10px 0; }
+        h3 { font-size: 13px; color: var(--gold); margin: 8px 0; letter-spacing: 2px; }
         .title-input {
             width: 100%; background: #000; border: 2px solid var(--gold);
             color: var(--gold); font-family: 'Press Start 2P';
-            padding: 10px; font-size: 10px; margin-bottom: 10px; text-align: center;
+            padding: 10px; font-size: 10px; margin-bottom: 8px; text-align: center;
         }
         .hidden { display: none !important; }
         .controls, .file-ops { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
         .bpm-control {
-            background: #000; border: 3px solid #5f574f; padding: 12px;
-            display: flex; flex-direction: column; gap: 10px; font-size: 9px;
+            background: #000; border: 3px solid #5f574f; padding: 10px;
+            display: flex; flex-direction: column; gap: 8px; font-size: 9px;
         }
-        input[type=range] { width: 100%; height: 25px; accent-color: var(--green); }
-        .select-row, .file-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .file-buttons { grid-template-columns: 1fr 1fr 1fr; }
+        input[type=range] { width: 100%; height: 22px; accent-color: var(--green); }
+        .select-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .file-buttons { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
         select {
-            background: #000; color: var(--green); border: 3px solid #5f574f; 
-            padding: 10px; font-family: 'Press Start 2P'; font-size: 9px; width: 100%;
+            background: #000; color: var(--green); border: 3px solid #5f574f;
+            padding: 8px; font-family: 'Press Start 2P'; font-size: 8px; width: 100%;
         }
+        .sound-panel {
+            background: #000; border: 3px solid #333; padding: 10px;
+            display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;
+        }
+        .sound-label { font-size: 7px; color: #888; margin-bottom: 4px; text-align: left; }
         #editor {
-            display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px;
-            max-height: 250px; overflow-y: auto; background: #000; padding: 5px; border: 3px solid #5f574f;
+            display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px;
+            max-height: 220px; overflow-y: auto; background: #000; padding: 5px; border: 3px solid #5f574f;
         }
         .measure-row {
-            display: flex; align-items: center; gap: 5px; background: #222; padding: 5px;
-            border-left: 6px solid #5f574f;
+            display: flex; align-items: center; gap: 4px; background: #111; padding: 4px;
+            border-left: 5px solid #5f574f;
         }
         .measure-row.complete { border-left-color: var(--green); }
         .measure-row.overflow { border-left-color: var(--pink); }
         .measure-input {
             flex-grow: 1; background: transparent; border: none; color: var(--green);
-            font-family: monospace; font-size: 14px; outline: none; text-transform: uppercase;
+            font-family: monospace; font-size: 13px; outline: none; text-transform: uppercase;
         }
-        .measure-counter { font-size: 8px; min-width: 55px; color: #888; }
-        .row-btn { background: #444; color: white; border: 2px solid #000; padding: 8px 5px; font-size: 8px; cursor: pointer; font-family: 'Press Start 2P'; }
-        
-        #playback-view {
-            background: #000; border: 4px solid #333;
-            height: 200px; margin-bottom: 10px; padding: 10px;
+        .measure-counter { font-size: 7px; min-width: 48px; color: #666; }
+        .row-btn { background: #333; color: #aaa; border: 2px solid #000; padding: 7px 4px; font-size: 7px; cursor: pointer; font-family: 'Press Start 2P'; }
+        #help-panel {
+            background: #000; border: 3px solid var(--gold); padding: 10px;
+            font-size: 7px; text-align: left; margin-bottom: 8px; display: none;
+            line-height: 2; color: #bbb;
+        }
+        #help-panel span { color: var(--green); }
+        #help-panel em { color: var(--gold); font-style: normal; }
+
+        /* ══ PANTALLA REPRODUCCIÓN ══ */
+        #playback-screen {
+            position: fixed; inset: 0; z-index: 100;
+            background: #000;
             display: flex; flex-direction: column;
+            overflow: hidden;
         }
-        .title-frame { border: 4px double var(--gold); background: #111; padding: 8px; margin-bottom: 10px; }
-        #pb-title { font-size: 10px; color: #fff; }
-        #notes-container {
-            flex-grow: 1; overflow-y: auto; display: flex;
-            flex-wrap: wrap; justify-content: center; align-content: flex-start;
-            gap: 10px; padding: 5px;
-        }
-        .k-note { font-size: 12px; color: #444; transition: transform 0.1s; }
-        .k-note.active { color: var(--gold); transform: scale(1.0); text-shadow: 0 0 5px var(--gold); z-index: 10; }
-        
-        .stage-container {
-            position: relative; 
-            background: linear-gradient(45deg, #ff00ff, #00ffff, #ffea00, #ff004d, #00e436);
-            background-size: 400% 400%;
-            animation: psycho 10s linear infinite;
-            border: 4px double var(--gold);
-            height: 220px;
-            margin-bottom: 10px; border-radius: 8px; overflow: hidden;
-            display: flex; flex-direction: column; justify-content: flex-end;
-            transition: box-shadow 0.3s ease;
-        }
-
-        .stage-container.playing {
-            box-shadow: inset 0 0 60px var(--note-color);
-        }
-
-        @keyframes psycho {
-            0% { background-position: 0% 0%; }
-            100% { background-position: 100% 100%; }
-        }
-
-        .visualizer {
-            position: absolute;
-            top: 20px;
-            left: 0;
-            width: 100%;
-            height: 60px;
-            display: flex;
-            justify-content: center;
-            align-items: flex-end;
-            gap: 4px;
-            padding: 0 20px;
+        #particle-canvas {
+            position: absolute; inset: 0; width: 100%; height: 100%;
             pointer-events: none;
         }
-
-        .v-bar {
+        #note-flash {
+            position: absolute; inset: 0; opacity: 0;
+            pointer-events: none; transition: opacity 0.05s;
+        }
+        #pb-song-title {
+            position: relative; z-index: 10;
+            font-size: 10px; color: var(--gold);
+            letter-spacing: 3px; padding: 16px 10px 8px;
+            text-shadow: 0 0 20px var(--gold);
+            border-bottom: 2px solid rgba(212,175,55,0.3);
+        }
+        #note-display {
+            position: relative; z-index: 10;
             flex: 1;
-            max-width: 15px;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.2);
-            transition: height 0.1s ease, background 0.3s ease;
-            border-top: 2px solid #fff;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 14px;
+        }
+        #current-note-name {
+            font-size: 52px; color: #fff; line-height: 1;
+            transition: color 0.07s, text-shadow 0.07s;
+        }
+        #beat-track { display: flex; gap: 8px; align-items: center; }
+        .beat-dot {
+            width: 12px; height: 12px; border: 2px solid #333;
+            transition: background 0.05s, border-color 0.05s, transform 0.05s;
+        }
+        .beat-dot.on {
+            background: var(--gold); border-color: var(--gold);
+            transform: scale(1.5); box-shadow: 0 0 10px var(--gold);
+        }
+        .beat-dot.bombo { width: 16px; height: 16px; }
+        #notes-scroll-wrap {
+            position: relative; z-index: 10; height: 50px; overflow: hidden;
+            mask-image: linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%);
+            margin: 0 0 6px;
+        }
+        #notes-scroll {
+            display: flex; gap: 14px; padding: 0 50%; align-items: center;
+            height: 50px; transition: transform 0.15s ease;
+        }
+        .scroll-note {
+            font-size: 9px; color: #2a2a2a; white-space: nowrap; flex-shrink: 0;
+            transition: color 0.07s, font-size 0.07s;
+        }
+        .scroll-note.current { color: var(--gold); font-size: 14px; text-shadow: 0 0 12px var(--gold); }
+        .scroll-note.past { color: #444; }
+        #pb-visualizer {
+            position: relative; z-index: 10;
+            display: flex; gap: 4px; height: 48px;
+            align-items: flex-end; justify-content: center;
+            padding: 0 16px; margin-bottom: 4px;
+        }
+        .pb-bar {
+            flex: 1; max-width: 18px; min-height: 3px;
+            transition: height 0.08s ease, background 0.12s ease;
+            border-top: 2px solid rgba(255,255,255,0.4);
+        }
+        #pb-stage {
+            position: relative; z-index: 10;
+            display: flex; align-items: flex-end; justify-content: center;
+            gap: 24px; padding: 6px 0 12px;
+        }
+        .pb-musician { display: flex; flex-direction: column; align-items: center; transition: transform 0.08s; }
+        .pb-musician img { width: 68px; height: 96px; object-fit: contain; image-rendering: pixelated; }
+        .pb-musician.active { transform: translateY(-12px); }
+        .musician-label { font-size: 6px; color: #444; margin-top: 2px; }
+        #pb-stop-btn {
+            position: relative; z-index: 10; display: block;
+            background: rgba(0,0,0,0.7); color: #666; border: 3px solid #333;
+            padding: 10px 24px; font-family: 'Press Start 2P'; font-size: 9px;
+            cursor: pointer; margin: 0 auto 14px; width: fit-content;
         }
 
-        .orchestra-area { 
-            display: flex; 
-            align-items: flex-end; 
-            justify-content: center;
-            gap: 20px;
-            padding-bottom: 10px; 
-            z-index: 2; 
+        /* ══ ESCENARIO EDICIÓN ══ */
+        .stage-container {
+            position: relative;
+            background: linear-gradient(45deg,#ff00ff,#00ffff,#ffea00,#ff004d,#00e436);
+            background-size: 400% 400%; animation: psycho 10s linear infinite;
+            border: 4px double var(--gold); height: 170px;
+            margin-bottom: 8px; border-radius: 4px; overflow: hidden;
+            display: flex; flex-direction: column; justify-content: flex-end;
         }
-        .musician img { 
-            width: 100px; height: 140px;
-            object-fit: contain; image-rendering: pixelated; 
+        @keyframes psycho { 0%{background-position:0% 0%} 100%{background-position:100% 100%} }
+        .mini-visualizer {
+            position: absolute; top: 8px; left: 0; width: 100%; height: 44px;
+            display: flex; justify-content: center; align-items: flex-end;
+            gap: 3px; padding: 0 16px; pointer-events: none;
         }
-
-        .musician.active { transform: translateY(-15px); }
+        .v-bar { flex:1; max-width:12px; height:3px; background:rgba(255,255,255,0.2); transition:height 0.1s; border-top:2px solid #fff; }
+        .orchestra-area {
+            display: flex; align-items: flex-end; justify-content: center;
+            gap: 16px; padding-bottom: 8px; z-index: 2;
+        }
+        .musician img { width:68px; height:96px; object-fit:contain; image-rendering:pixelated; }
+        .musician.active { transform: translateY(-10px); }
         .btn-group { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; }
         button { background: var(--pink); color: #fff; border: 4px solid #000; padding: 10px; cursor: pointer; font-family: 'Press Start 2P'; font-size: 9px; }
+        #status-bar { font-size: 7px; color: #555; margin-bottom: 4px; min-height: 12px; }
     </style>
 </head>
 <body>
 
-    <h3 id="main-title">🎵 COMPOSITOR DUO ULTRA 🎵</h3>
+<h3>🎵 COMPOSITOR DUO ULTRA 🎵</h3>
 
-    <div id="ui-edit">
-        <input type="text" id="march-title" class="title-input" value="DEMO TECNICA">
-        <div class="controls">
-            <div class="bpm-control">
-                <span>BPM: <span id="bpmValue">100</span></span>
-                <input type="range" id="bpm" min="40" max="160" value="100" oninput="document.getElementById('bpmValue').innerText = this.value">
-            </div>
-            <div class="select-row">
-                <select id="timeSignature" onchange="validateAll()">
-                    <option value="4/4">4/4</option><option value="3/4">3/4</option>
-                    <option value="2/4">2/4</option><option value="6/8">6/8</option>
-                </select>
-            </div>
+<div id="ui-edit">
+    <input type="text" id="march-title" class="title-input" value="DEMO TECNICA">
+    <div class="controls">
+        <div class="bpm-control">
+            <span>BPM: <span id="bpmValue">100</span></span>
+            <input type="range" id="bpm" min="40" max="200" value="100" oninput="document.getElementById('bpmValue').innerText=this.value">
         </div>
-        <div id="editor">
-            </div>
-        <button onclick="addMeasure()" style="width:100%; margin-bottom:10px; background:var(--green);">+ AÑADIR COMPÁS</button>
-        <div class="file-ops">
-            <div class="file-buttons">
-                <button onclick="exportToTxt()">💾 EXPORTAR</button>
-                <button onclick="copyToClipboard()">📋 COPIAR</button>
-                <button onclick="document.getElementById('importFile').click()">📂 IMPORTAR</button>
-            </div>
-            <input type="file" id="importFile" style="display:none" onchange="importFromTxt(this)">
+        <div class="select-row">
+            <select id="timeSignature" onchange="validateAll()">
+                <option value="4/4">4/4</option><option value="3/4">3/4</option>
+                <option value="2/4">2/4</option><option value="6/8">6/8</option>
+            </select>
+            <button onclick="toggleHelp()" style="background:#222;font-size:7px;">❓ AYUDA</button>
         </div>
     </div>
 
-    <div id="playback-view" class="hidden">
-        <div class="title-frame"><div id="pb-title"></div></div>
-        <div id="notes-container"></div>
-    </div>
-
-    <div class="stage-container" id="stage">
-        <div class="visualizer" id="visualizer"></div>
-        <div class="orchestra-area">
-            <div class="musician" id="m-PERC"><img src="percusion.png"></div>
-            <div class="musician" id="m-MELODY"><img src="melodia.png"></div>
+    <div class="sound-panel">
+        <div>
+            <div class="sound-label">🎺 MELODÍA</div>
+            <select id="melodyTimbre">
+                <option value="triangle">TRIANGLE</option>
+                <option value="square">SQUARE</option>
+                <option value="sawtooth">SAWTOOTH</option>
+                <option value="sine">SINE</option>
+                <option value="pulse">PULSE 8BIT</option>
+                <option value="chip">CHIP LEAD</option>
+            </select>
+        </div>
+        <div>
+            <div class="sound-label">🥁 PERCUSIÓN</div>
+            <select id="percKit">
+                <option value="classic">CLASSIC 808</option>
+                <option value="chip8">CHIP 8BIT</option>
+                <option value="taiko">TAIKO DRUM</option>
+                <option value="electro">ELECTRO</option>
+                <option value="march">MARCH COFRADE</option>
+            </select>
         </div>
     </div>
 
-    <div class="btn-group">
-        <button onclick="playMusic()">📯 PLAY</button>
-        <button onclick="stopMusic()" style="background:#555;">⏹ STOP</button>
+    <div id="help-panel">
+        <em>── NOTAS ──</em><br>
+        <span>DO RE MI FA SOL LA SI</span> + sostenidos: <span>DO# RE# FA# SOL# LA#</span><br>
+        <span>_</span> = silencio<br><br>
+        <em>── DURACIONES ──</em><br>
+        <span>1</span>=redonda <span>2</span>=blanca <span>4</span>=negra <span>8</span>=corchea <span>.</span>=puntillo<br><br>
+        <em>── LIGADURAS ──</em><br>
+        <span>DO2- DO4</span> liga (misma nota) · <span>DO2- RE4</span> NO liga<br><br>
+        <em>── OCTAVAS / ACORDES / TRESILLOS ──</em><br>
+        <span>&lt;</span> baja · <span>&gt;</span> sube · <span>[DO MI SOL]2</span> acorde · <span>(DO RE MI)</span> tresillo<br><br>
+        <em>── ARMONÍA ──</em><br>
+        Separar con <span>|</span>: <span>DO RE | SOL SOL</span>
     </div>
+
+    <div id="status-bar"></div>
+    <div id="editor"></div>
+    <button onclick="addMeasure()" style="width:100%;margin-bottom:8px;background:var(--green);">+ AÑADIR COMPÁS</button>
+    <div class="file-ops">
+        <div class="file-buttons">
+            <button onclick="exportToTxt()">💾 EXPORT</button>
+            <button onclick="copyToClipboard()">📋 COPIAR</button>
+            <button onclick="document.getElementById('importFile').click()">📂 IMPORT</button>
+        </div>
+        <input type="file" id="importFile" style="display:none" onchange="importFromTxt(this)">
+    </div>
+</div>
+
+<div class="stage-container" id="stage-edit">
+    <div class="mini-visualizer" id="mini-viz"></div>
+    <div class="orchestra-area">
+        <div class="musician" id="me-PERC">
+            <img src="percusion.png" onerror="this.parentElement.innerHTML='<div style=\'font-size:34px;padding-bottom:6px\'>🥁</div>'">
+        </div>
+        <div class="musician" id="me-MELODY">
+            <img src="melodia.png" onerror="this.parentElement.innerHTML='<div style=\'font-size:34px;padding-bottom:6px\'>🎺</div>'">
+        </div>
+    </div>
+</div>
+
+<div class="btn-group">
+    <button onclick="playMusic()">📯 PLAY</button>
+    <button onclick="stopMusic()" style="background:#333;">⏹ STOP</button>
+</div>
+
+<!-- PANTALLA REPRODUCCIÓN -->
+<div id="playback-screen" class="hidden">
+    <canvas id="particle-canvas"></canvas>
+    <div id="note-flash"></div>
+    <div id="pb-song-title"></div>
+    <div id="note-display">
+        <div id="current-note-name">—</div>
+        <div id="beat-track"></div>
+    </div>
+    <div id="notes-scroll-wrap"><div id="notes-scroll"></div></div>
+    <div id="pb-visualizer"></div>
+    <div id="pb-stage">
+        <div class="pb-musician" id="pb-PERC">
+            <img src="percusion.png" onerror="this.parentElement.innerHTML='<div style=\'font-size:44px\'>🥁</div><div class=musician-label>PERC</div>'">
+            <div class="musician-label">PERC</div>
+        </div>
+        <div class="pb-musician" id="pb-MELODY">
+            <img src="melodia.png" onerror="this.parentElement.innerHTML='<div style=\'font-size:44px\'>🎺</div><div class=musician-label>MELODÍA</div>'">
+            <div class="musician-label">MELODÍA</div>
+        </div>
+    </div>
+    <button id="pb-stop-btn" onclick="stopMusic()">⏹ STOP</button>
+</div>
 
 <script>
-    const noteFrequencies = {
-        "DO": 261.63, "DO#": 277.18, "REB": 277.18, "RE": 293.66, "RE#": 311.13, "MIB": 311.13,
-        "MI": 329.63, "FA": 349.23, "FA#": 369.99, "SOLB": 369.99, "SOL": 392.00, 
-        "SOL#": 415.30, "LAB": 415.30, "LA": 440.00, "LA#": 466.16, "SIB": 466.16, "SI": 493.88
-    };
+// ── DATOS ──────────────────────────────────────────────────────────────────────
+const NOTE_FREQ_BASE = {
+    "DO":261.63,"DO#":277.18,"REB":277.18,"RE":293.66,"RE#":311.13,"MIB":311.13,
+    "MI":329.63,"FA":349.23,"FA#":369.99,"SOLB":369.99,"SOL":392.00,
+    "SOL#":415.30,"LAB":415.30,"LA":440.00,"LA#":466.16,"SIB":466.16,"SI":493.88
+};
+const ENHARMONIC = {"REB":"DO#","RE#":"MIB","SOLB":"FA#","SOL#":"LAB","LA#":"SIB","LAB":"SOL#","MIB":"RE#"};
+const NOTE_COLORS = {
+    "DO":"#ff2244","DO#":"#ff6600","REB":"#ff6600","RE":"#ffee00","RE#":"#aaff00","MIB":"#aaff00",
+    "MI":"#00ff55","FA":"#00ffee","FA#":"#0088ff","SOLB":"#0088ff","SOL":"#8800ff",
+    "SOL#":"#cc00ff","LAB":"#cc00ff","LA":"#ff00cc","LA#":"#ff0077","SIB":"#ff0077","SI":"#ff1133"
+};
+const NOTES_LIST = ["DO","DO#","RE","RE#","MI","FA","FA#","SOL","SOL#","LA","LA#","SI"];
 
-    const noteColors = {
-        "DO": "#ff0000", "DO#": "#ff4500", "RE": "#ffff00", "RE#": "#bfff00", "MI": "#00ff00",
-        "FA": "#00ffff", "FA#": "#0000ff", "SOL": "#4b0082", "SOL#": "#8a2be2", "LA": "#ff00ff",
-        "LA#": "#ff1493", "SI": "#dc143c"
-    };
+// ── VISUALIZADORES ─────────────────────────────────────────────────────────────
+document.getElementById('mini-viz') && NOTES_LIST.forEach(n=>{
+    const b=document.createElement('div'); b.className='v-bar'; b.id=`vbar-${n}`;
+    document.getElementById('mini-viz').appendChild(b);
+});
+NOTES_LIST.forEach(n=>{
+    const b=document.createElement('div'); b.className='pb-bar'; b.id=`pbbar-${n}`;
+    b.style.cssText='height:3px;background:rgba(255,255,255,0.12)';
+    document.getElementById('pb-visualizer').appendChild(b);
+});
 
-    const notesList = ["DO", "DO#", "RE", "RE#", "MI", "FA", "FA#", "SOL", "SOL#", "LA", "LA#", "SI"];
-    const visualizer = document.getElementById('visualizer');
-    notesList.forEach(n => {
-        const bar = document.createElement('div');
-        bar.className = 'v-bar';
-        bar.id = `bar-${n}`;
-        visualizer.appendChild(bar);
+// ── ESTADO ─────────────────────────────────────────────────────────────────────
+let audioCtx=null, animTimeouts=[], particleRAF=null;
+let pxCanvas=null, pxCtx=null;
+const particles=[];
+
+// ── KITS PERCUSIÓN ─────────────────────────────────────────────────────────────
+const KITS = {
+    classic:{
+        bombo:(ctx,t)=>{
+            const o=ctx.createOscillator(),g=ctx.createGain();
+            o.frequency.setValueAtTime(80,t); o.frequency.exponentialRampToValueAtTime(0.01,t+0.18);
+            g.gain.setValueAtTime(0.5,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.18);
+            o.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+0.2);
+        },
+        caja:(ctx,t)=>{
+            const buf=ctx.createBuffer(1,ctx.sampleRate*0.1,ctx.sampleRate),d=buf.getChannelData(0);
+            for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*(1-i/d.length);
+            const src=ctx.createBufferSource(),g=ctx.createGain(),f=ctx.createBiquadFilter();
+            f.type='highpass';f.frequency.value=3000;src.buffer=buf;
+            g.gain.setValueAtTime(0.25,t);src.connect(f);f.connect(g);g.connect(ctx.destination);src.start(t);
+        }
+    },
+    chip8:{
+        bombo:(ctx,t)=>{
+            const o=ctx.createOscillator(),g=ctx.createGain();
+            o.type='square';
+            o.frequency.setValueAtTime(120,t);o.frequency.setValueAtTime(80,t+0.02);
+            o.frequency.setValueAtTime(50,t+0.04);o.frequency.setValueAtTime(28,t+0.07);
+            g.gain.setValueAtTime(0.4,t);g.gain.linearRampToValueAtTime(0,t+0.12);
+            o.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+0.13);
+        },
+        caja:(ctx,t)=>{
+            const o=ctx.createOscillator(),g=ctx.createGain();
+            o.type='square';
+            o.frequency.setValueAtTime(440,t);o.frequency.setValueAtTime(880,t+0.01);o.frequency.setValueAtTime(220,t+0.02);
+            g.gain.setValueAtTime(0.2,t);g.gain.linearRampToValueAtTime(0,t+0.06);
+            o.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+0.07);
+        }
+    },
+    taiko:{
+        bombo:(ctx,t)=>{
+            const o=ctx.createOscillator(),g=ctx.createGain();
+            o.type='sine';o.frequency.setValueAtTime(55,t);o.frequency.exponentialRampToValueAtTime(28,t+0.3);
+            g.gain.setValueAtTime(0.6,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.35);
+            o.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+0.4);
+        },
+        caja:(ctx,t)=>{
+            const o=ctx.createOscillator(),g=ctx.createGain();
+            o.type='triangle';o.frequency.setValueAtTime(180,t);o.frequency.exponentialRampToValueAtTime(60,t+0.12);
+            g.gain.setValueAtTime(0.3,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.15);
+            o.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+0.16);
+        }
+    },
+    electro:{
+        bombo:(ctx,t)=>{
+            const o=ctx.createOscillator(),g=ctx.createGain(),dist=ctx.createWaveShaper();
+            const curve=new Float32Array(256);
+            for(let i=0;i<256;i++){const x=(i*2/256)-1;curve[i]=x<0?-1:1;}
+            dist.curve=curve; o.type='sine';
+            o.frequency.setValueAtTime(100,t);o.frequency.exponentialRampToValueAtTime(0.01,t+0.22);
+            g.gain.setValueAtTime(0.45,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.22);
+            o.connect(dist);dist.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+0.23);
+        },
+        caja:(ctx,t)=>{
+            const buf=ctx.createBuffer(1,ctx.sampleRate*0.08,ctx.sampleRate),d=buf.getChannelData(0);
+            for(let i=0;i<d.length;i++) d[i]=Math.random()>0.5?0.5:-0.5;
+            const src=ctx.createBufferSource(),g=ctx.createGain();
+            src.buffer=buf;g.gain.setValueAtTime(0.3,t);g.gain.linearRampToValueAtTime(0,t+0.08);
+            src.connect(g);g.connect(ctx.destination);src.start(t);
+        }
+    },
+    march:{
+        bombo:(ctx,t)=>{
+            const o1=ctx.createOscillator(),o2=ctx.createOscillator(),g=ctx.createGain();
+            o1.type='sine';o2.type='triangle';
+            o1.frequency.setValueAtTime(50,t);o2.frequency.setValueAtTime(70,t);
+            o1.frequency.exponentialRampToValueAtTime(20,t+0.4);o2.frequency.exponentialRampToValueAtTime(20,t+0.3);
+            g.gain.setValueAtTime(0.55,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.45);
+            o1.connect(g);o2.connect(g);g.connect(ctx.destination);
+            o1.start(t);o2.start(t);o1.stop(t+0.5);o2.stop(t+0.5);
+        },
+        caja:(ctx,t)=>{
+            const buf=ctx.createBuffer(1,ctx.sampleRate*0.2,ctx.sampleRate),d=buf.getChannelData(0);
+            for(let i=0;i<d.length;i++){const env=Math.exp(-i/(ctx.sampleRate*0.04));d[i]=(Math.random()*2-1)*env;}
+            const src=ctx.createBufferSource(),g=ctx.createGain(),f=ctx.createBiquadFilter();
+            f.type='bandpass';f.frequency.value=1800;f.Q.value=0.5;
+            src.buffer=buf;g.gain.setValueAtTime(0.4,t);
+            src.connect(f);f.connect(g);g.connect(ctx.destination);src.start(t);
+        }
+    }
+};
+
+// ── TIMBRES MELODÍA ────────────────────────────────────────────────────────────
+function createMelodySound(ctx, freq, start, duration, gain) {
+    const type=document.getElementById('melodyTimbre').value;
+    const g=ctx.createGain();
+    if(type==='pulse'){
+        const o1=ctx.createOscillator(),o2=ctx.createOscillator();
+        o1.type='square';o2.type='square';
+        o1.frequency.setValueAtTime(freq,start);o2.frequency.setValueAtTime(freq*1.003,start);
+        g.gain.setValueAtTime(0,start);g.gain.linearRampToValueAtTime(gain*0.55,start+0.01);
+        g.gain.setValueAtTime(gain*0.4,start+duration*0.3);g.gain.exponentialRampToValueAtTime(0.001,start+duration-0.01);
+        o1.connect(g);o2.connect(g);g.connect(ctx.destination);
+        o1.start(start);o2.start(start);o1.stop(start+duration);o2.stop(start+duration);
+        return;
+    }
+    if(type==='chip'){
+        const o=ctx.createOscillator(),o2=ctx.createOscillator(),g2=ctx.createGain();
+        o.type='triangle';o2.type='square';
+        o.frequency.setValueAtTime(freq,start);o2.frequency.setValueAtTime(freq*2,start);
+        g.gain.setValueAtTime(0,start);g.gain.linearRampToValueAtTime(gain*0.5,start+0.015);
+        g.gain.exponentialRampToValueAtTime(0.001,start+duration);
+        g2.gain.setValueAtTime(gain*0.06,start);g2.gain.exponentialRampToValueAtTime(0.001,start+duration);
+        o.connect(g);o2.connect(g2);g.connect(ctx.destination);g2.connect(ctx.destination);
+        o.start(start);o2.start(start);o.stop(start+duration);o2.stop(start+duration);
+        return;
+    }
+    const o=ctx.createOscillator();
+    o.type=type;o.frequency.setValueAtTime(freq,start);
+    g.gain.setValueAtTime(0,start);g.gain.linearRampToValueAtTime(gain,start+0.02);
+    g.gain.exponentialRampToValueAtTime(0.001,start+duration-0.01);
+    o.connect(g);g.connect(ctx.destination);o.start(start);o.stop(start+duration);
+}
+
+// ── PARTÍCULAS ─────────────────────────────────────────────────────────────────
+class Particle {
+    constructor(x,y,color) {
+        this.x=x;this.y=y;this.color=color;
+        this.size=Math.random()*10+4;
+        this.vx=(Math.random()-0.5)*7;
+        this.vy=(Math.random()-0.5)*7-2;
+        this.life=1;this.decay=0.018+Math.random()*0.025;
+        this.pixel=Math.random()>0.35;
+    }
+    update(){this.x+=this.vx;this.y+=this.vy;this.vy+=0.15;this.life-=this.decay;}
+    draw(ctx){
+        if(this.life<=0)return;
+        ctx.globalAlpha=this.life;ctx.fillStyle=this.color;
+        if(this.pixel) ctx.fillRect(this.x,this.y,this.size,this.size);
+        else{ctx.beginPath();ctx.arc(this.x,this.y,this.size/2,0,Math.PI*2);ctx.fill();}
+        ctx.globalAlpha=1;
+    }
+}
+
+function initParticleCanvas(){
+    pxCanvas=document.getElementById('particle-canvas');
+    pxCtx=pxCanvas.getContext('2d');
+    pxCanvas.width=window.innerWidth;pxCanvas.height=window.innerHeight;
+    particleRAF=requestAnimationFrame(tickParticles);
+}
+function tickParticles(){
+    if(!pxCtx)return;
+    pxCtx.clearRect(0,0,pxCanvas.width,pxCanvas.height);
+    for(let i=particles.length-1;i>=0;i--){
+        particles[i].update();particles[i].draw(pxCtx);
+        if(particles[i].life<=0)particles.splice(i,1);
+    }
+    particleRAF=requestAnimationFrame(tickParticles);
+}
+function burst(color,isBeat){
+    const x=isBeat?pxCanvas.width/2:Math.random()*pxCanvas.width;
+    const y=isBeat?pxCanvas.height*0.72:Math.random()*pxCanvas.height*0.55;
+    const n=isBeat?22:9;
+    for(let i=0;i<n;i++) particles.push(new Particle(x,y,color));
+}
+
+// ── PARSER (igual versión anterior) ───────────────────────────────────────────
+function getTargetBeats(){const s=document.getElementById('timeSignature').value;return s==="6/8"?3:parseInt(s.split('/')[0]);}
+function getBpm(){return parseFloat(document.getElementById('bpm').value);}
+function parseDuration(str){
+    const m=str.match(/^([^.]+)(\.*)$/);if(!m)return 1;
+    const base=m[1],dots=m[2].length;
+    let b;switch(base){case'1':b=4;break;case'2':b=2;break;case'4':b=1;break;case'8':b=0.5;break;
+        case'16':b=0.25;break;case'1/2':b=0.5;break;case'1/4':b=0.25;break;default:b=1;}
+    let add=b;for(let i=0;i<dots;i++){add/=2;b+=add;}return b;
+}
+function parseSimpleToken(raw){
+    if(!raw)return null;const token=raw.toUpperCase();
+    const isTied=token.endsWith('-');const t=isTied?token.slice(0,-1):token;
+    const downs=(t.match(/</g)||[]).length,ups=(t.match(/>/g)||[]).length,octave=4-downs+ups;
+    const body=t.replace(/[<>]/g,'');const isRest=body.startsWith('_');
+    let noteName=null;
+    if(!isRest){const m=body.match(/^([A-Z]+#?)/);if(!m)return null;noteName=m[1];if(!NOTE_FREQ_BASE[noteName])return null;}
+    const afterName=isRest?body.slice(1):body.slice((noteName||'').length);
+    const beats=parseDuration(afterName||'4');const duration=(60/getBpm())*beats;
+    const freq=(!isRest)?NOTE_FREQ_BASE[noteName]*Math.pow(2,octave-4):0;
+    const canonName=ENHARMONIC[noteName]||noteName;
+    return{freq,duration,beats,isTied,name:noteName||"REST",canonName,octave,original:raw,isRest};
+}
+function tokenizePart(text){
+    if(!text||!text.trim())return[];const result=[];const upper=text.toUpperCase();
+    const regex=/\[([^\]]+)\]([^\s|[({]*)|(\(([^)]+)\))|(\S+)/g;let match;
+    while((match=regex.exec(upper))!==null){
+        if(match[1]!==undefined){
+            const toks=match[1].trim().split(/\s+/),dur=match[2]||'4',isTied=dur.endsWith('-');
+            const cd=isTied?dur.slice(0,-1):dur,beats=parseDuration(cd),duration=(60/getBpm())*beats;
+            const notes=toks.map(t=>parseSimpleToken(t)).filter(Boolean);
+            result.push({isChord:true,notes,beats,duration,isTied,original:`[${match[1]}]${match[2]||'4'}`});continue;
+        }
+        if(match[3]!==undefined){
+            match[4].trim().split(/\s+/).forEach(t=>{const n=parseSimpleToken(t);
+                if(n){n.beats*=(2/3);n.duration*=(2/3);n.original=`(${n.original})`;result.push(n);}});continue;
+        }
+        const raw=match[5];if(!raw||raw==='|')continue;const n=parseSimpleToken(raw);if(n)result.push(n);
+    }
+    return result;
+}
+function applyTies(notes){
+    if(!notes.length)return[];const out=[];let i=0;
+    while(i<notes.length){let cur={...notes[i]};
+        if(!cur.isTied){out.push(cur);i++;continue;}
+        if(i+1<notes.length){const nxt=notes[i+1];
+            const canLig=!cur.isChord&&!nxt.isChord&&cur.canonName===nxt.canonName&&cur.octave===nxt.octave;
+            if(canLig){cur={...cur};cur.duration+=nxt.duration;cur.beats+=nxt.beats;cur.isTied=nxt.isTied;
+                cur.original=cur.original.replace(/-$/,'')+'~';i+=2;
+                while(cur.isTied&&i<notes.length){const nn=notes[i];
+                    if(nn.isChord||nn.canonName!==cur.canonName||nn.octave!==cur.octave)break;
+                    cur.duration+=nn.duration;cur.beats+=nn.beats;cur.isTied=nn.isTied;cur.original+='~';i++;}
+                out.push(cur);
+            }else{out.push({...cur,isTied:false});i++;}
+        }else{out.push({...cur,isTied:false});i++;}
+    }
+    return out;
+}
+
+// ── AUDIO NOTA ─────────────────────────────────────────────────────────────────
+function playNote(note,start,isHarmony=false,scrollIdx=null){
+    if(!note||!audioCtx)return;
+    if(note.isChord){
+        note.notes.forEach(n=>{if(n)playNote({...n,duration:note.duration},start,isHarmony,null);});
+        if(!isHarmony)scheduleVisual(note,start,scrollIdx);return;
+    }
+    if(note.isRest||note.freq===0){
+        if(!isHarmony&&scrollIdx!==null)scheduleVisual(note,start,scrollIdx);return;
+    }
+    createMelodySound(audioCtx,note.freq,start,note.duration,isHarmony?0.07:0.15);
+    if(!isHarmony)scheduleVisual(note,start,scrollIdx);
+}
+
+function scheduleVisual(note,start,scrollIdx){
+    const delay=Math.max(0,(start-audioCtx.currentTime)*1000);
+    const noteName=note.isChord?(note.notes[0]&&note.notes[0].name):note.name;
+    const color=NOTE_COLORS[noteName]||'#ffffff';
+    const t=setTimeout(()=>{
+        // Flash
+        const fl=document.getElementById('note-flash');
+        if(fl){fl.style.background=color;fl.style.opacity='0.2';setTimeout(()=>fl.style.opacity='0',80);}
+        // Nombre nota
+        const ne=document.getElementById('current-note-name');
+        if(ne){
+            if(note.isRest){ne.textContent='·';ne.style.color='#222';ne.style.textShadow='none';}
+            else{ne.textContent=noteName;ne.style.color=color;ne.style.textShadow=`0 0 40px ${color},0 0 80px ${color}`;}
+        }
+        // Barras PB
+        const pb=document.getElementById(`pbbar-${noteName}`);
+        if(pb){pb.style.height='48px';pb.style.background=color;
+            setTimeout(()=>{pb.style.height='3px';pb.style.background='rgba(255,255,255,0.12)';},Math.max(80,note.duration*850));}
+        // Mini viz
+        const mv=document.getElementById(`vbar-${noteName}`);
+        if(mv){mv.style.height='44px';setTimeout(()=>mv.style.height='3px',Math.max(80,note.duration*850));}
+        // Músicos
+        ['me-MELODY','pb-MELODY'].forEach(id=>{
+            const el=document.getElementById(id);
+            if(el){el.classList.add('active');setTimeout(()=>el.classList.remove('active'),note.duration*800);}
+        });
+        // Scroll
+        if(scrollIdx!==null)advanceScroll(scrollIdx);
+        // Partículas
+        if(!note.isRest)burst(color,false);
+    },delay);
+    animTimeouts.push(t);
+}
+
+function advanceScroll(idx){
+    const c=document.getElementById('notes-scroll');if(!c)return;
+    const items=c.querySelectorAll('.scroll-note');
+    items.forEach((el,i)=>{el.classList.remove('current','past');
+        if(i<idx)el.classList.add('past');else if(i===idx)el.classList.add('current');});
+    const item=items[idx];
+    if(item){const off=item.offsetLeft-(c.parentElement.offsetWidth/2)+(item.offsetWidth/2);
+        c.style.transform=`translateX(-${off}px)`;}
+}
+
+// ── PERCUSIÓN ──────────────────────────────────────────────────────────────────
+function triggerPerc(time,type,beatInMeasure){
+    if(!audioCtx)return;
+    const kit=document.getElementById('percKit').value;
+    KITS[kit][type](audioCtx,time);
+    const delay=Math.max(0,(time-audioCtx.currentTime)*1000);
+    const t=setTimeout(()=>{
+        ['me-PERC','pb-PERC'].forEach(id=>{
+            const el=document.getElementById(id);
+            if(el){el.classList.add('active');setTimeout(()=>el.classList.remove('active'),120);}
+        });
+        updateBeatDots(beatInMeasure);
+        if(type==='bombo'){
+            burst('#ffffff',true);
+            const fl=document.getElementById('note-flash');
+            if(fl){fl.style.background='#fff';fl.style.opacity='0.07';setTimeout(()=>fl.style.opacity='0',60);}
+        }
+    },delay);
+    animTimeouts.push(t);
+}
+
+// ── BEAT DOTS ──────────────────────────────────────────────────────────────────
+function buildBeatDots(){
+    const track=document.getElementById('beat-track');if(!track)return;
+    track.innerHTML='';const beats=getTargetBeats();
+    for(let i=0;i<beats;i++){
+        const d=document.createElement('div');
+        d.className='beat-dot'+(i===0?' bombo':'');d.id=`bd-${i}`;track.appendChild(d);
+    }
+}
+function updateBeatDots(bi){
+    for(let i=0;i<getTargetBeats();i++){
+        const d=document.getElementById(`bd-${i}`);if(d)d.classList.toggle('on',i===bi);
+    }
+}
+
+// ── STOP / PLAY ────────────────────────────────────────────────────────────────
+function stopMusic(){
+    if(audioCtx){audioCtx.close();audioCtx=null;}
+    animTimeouts.forEach(clearTimeout);animTimeouts=[];
+    if(particleRAF){cancelAnimationFrame(particleRAF);particleRAF=null;}
+    particles.length=0;pxCanvas=null;pxCtx=null;
+    document.getElementById('ui-edit').classList.remove('hidden');
+    document.getElementById('playback-screen').classList.add('hidden');
+    document.querySelectorAll('.v-bar,.pb-bar').forEach(b=>{b.style.height='3px';b.style.background='rgba(255,255,255,0.12)';});
+}
+
+function playMusic(){
+    stopMusic();
+    audioCtx=new AudioContext();const now=audioCtx.currentTime+0.1;
+    const rows=document.querySelectorAll('.measure-input');
+    document.getElementById('ui-edit').classList.add('hidden');
+    document.getElementById('playback-screen').classList.remove('hidden');
+    document.getElementById('pb-song-title').textContent=document.getElementById('march-title').value;
+    buildBeatDots();initParticleCanvas();
+    let allMelody=[],allHarmony=[];
+    rows.forEach(row=>{const[m,h]=row.value.split('|');
+        allMelody=allMelody.concat(tokenizePart(m));if(h)allHarmony=allHarmony.concat(tokenizePart(h));});
+    const fm=applyTies(allMelody),fh=applyTies(allHarmony);
+    // Scroll
+    const scroll=document.getElementById('notes-scroll');
+    scroll.innerHTML='';scroll.style.transform='translateX(0)';
+    fm.forEach((n,i)=>{
+        const sp=document.createElement('span');sp.className='scroll-note';
+        sp.textContent=n.isChord?`[${n.notes.map(x=>x.name).join('+')}]`:(n.isRest?'·':n.name);
+        scroll.appendChild(sp);
     });
+    // Melodía
+    let mOff=0;fm.forEach((n,i)=>{playNote(n,now+mOff,false,i);mOff+=n.duration;});
+    // Armonía
+    let hOff=0;fh.forEach(n=>{playNote(n,now+hOff,true);hOff+=n.duration;});
+    // Percusión
+    const tb=getTargetBeats(),bd=60/getBpm();
+    for(let i=0;i<rows.length*tb;i++) triggerPerc(now+i*bd,i%tb===0?'bombo':'caja',i%tb);
+}
 
-    let audioCtx = null;
-    let animationTimeouts = [];
-    const stage = document.getElementById('stage');
+// ── EDITOR ─────────────────────────────────────────────────────────────────────
+function validateAll(){
+    document.querySelectorAll('.measure-row').forEach(row=>{
+        const input=row.querySelector('.measure-input'),counter=row.querySelector('.measure-counter');
+        const raw=tokenizePart(input.value.split('|')[0]),total=raw.reduce((a,n)=>a+n.beats,0),target=getTargetBeats();
+        counter.textContent=total.toFixed(2).replace('.00','')+'/'+target;
+        row.classList.toggle('complete',Math.abs(total-target)<0.01);
+        row.classList.toggle('overflow',total>target+0.01);
+    });
+}
+function addMeasure(content=''){
+    const div=document.createElement('div');div.className='measure-row';
+    div.innerHTML=`<button class="row-btn" onclick="playMeasure(this.parentElement)">▶</button>
+         <input class="measure-input" value="${content}" oninput="validateAll()">
+         <span class="measure-counter">0/4</span>
+         <button class="row-btn" onclick="this.parentElement.remove();validateAll()">X</button>`;
+    document.getElementById('editor').appendChild(div);validateAll();
+}
+function playMeasure(row){
+    if(audioCtx){audioCtx.close();audioCtx=null;}animTimeouts.forEach(clearTimeout);animTimeouts=[];
+    audioCtx=new AudioContext();const now=audioCtx.currentTime+0.1;
+    const[m,h]=row.querySelector('.measure-input').value.split('|');
+    const mel=applyTies(tokenizePart(m||''));let off=0;
+    mel.forEach(n=>{playNote(n,now+off,false,null);off+=n.duration;});
+    if(h){let hoff=0;applyTies(tokenizePart(h)).forEach(n=>{playNote(n,now+hoff,true);hoff+=n.duration;});}
+    const tb=getTargetBeats();
+    for(let i=0;i<tb;i++) triggerPerc(now+i*(60/getBpm()),i===0?'bombo':'caja',i);
+}
 
-    function getTargetBeats() {
-        const sig = document.getElementById('timeSignature').value;
-        return sig === "6/8" ? 3 : parseInt(sig.split('/')[0]);
-    }
-
-    function getNoteBeats(token) {
-        if (!token || token === '|') return 0;
-        const cleanToken = token.replace(/^[<>]+/, '').replace(/-$/, '').replace(/[\[\]]/g, '');
-        const durMatch = cleanToken.match(/(1\/4|1\/2|1|2|4|8)(\.*)$/);
-        let beats = 1; 
-        if (durMatch) {
-            const d = durMatch[1];
-            if (d === '1') beats = 4;
-            else if (d === '2') beats = 2;
-            else if (d === '4') beats = 1;
-            else if (d === '1/2') beats = 0.5;
-            else if (d === '1/4') beats = 0.25;
-            else if (d === '8') beats = 0.125;
-            if (durMatch[2]) {
-                let extra = beats;
-                for(let i=0; i<durMatch[2].length; i++) { extra /= 2; beats += extra; }
-            }
-        }
-        return beats;
-    }
-
-    function parseNote(token) {
-        if (!token || token === '|') return null;
-        const bpm = document.getElementById('bpm').value;
-        const isTied = token.endsWith('-');
-        const cleanToken = token.replace(/-$/, '');
-        const downOct = (cleanToken.match(/</g) || []).length;
-        const upOct = (cleanToken.match(/>/g) || []).length;
-        let octave = 4 - downOct + upOct;
-
-        if (cleanToken.includes('_')) {
-            const beats = getNoteBeats(cleanToken);
-            return { freq: 0, duration: (60/bpm)*beats, beats, isTied, original: token, name: "REST" };
-        }
-
-        const nameMatch = cleanToken.match(/[A-Z]+#?/);
-        if (!nameMatch) return null;
-        const name = nameMatch[0].replace('B','');
-        const beats = getNoteBeats(cleanToken);
-        const freq = noteFrequencies[name] ? noteFrequencies[name] * Math.pow(2, octave - 4) : 0;
-        
-        return { freq, duration: (60/bpm)*beats, beats, isTied, original: token, name: name };
-    }
-
-    function tokenizePart(text) {
-        const result = [];
-        const regex = /\[([^\]]+)\](\S+)?|\(([^)]+)\)|(\S+)/g;
-        let match;
-        while ((match = regex.exec(text.toUpperCase())) !== null) {
-            if (match[1]) { // ACORDES
-                const notesInChord = match[1].trim().split(/\s+/);
-                const chordDurationToken = match[2] || "4";
-                const chordBeats = getNoteBeats("X" + chordDurationToken);
-                const bpm = document.getElementById('bpm').value;
-                result.push({
-                    isChord: true,
-                    notes: notesInChord.map(n => parseNote(n)),
-                    beats: chordBeats,
-                    duration: (60/bpm) * chordBeats,
-                    isTied: (match[2] || "").endsWith('-'),
-                    original: `[${match[1]}]${chordDurationToken}`
-                });
-            } else if (match[3]) { // TRESILLOS
-                const triplet = match[3].trim().split(/\s+/);
-                triplet.forEach(t => {
-                    const n = parseNote(t);
-                    if (n) { 
-                        n.beats *= (2/3); 
-                        n.duration *= (2/3); 
-                        result.push(n); 
-                    }
-                });
-            } else if (match[4] && match[4] !== '|') { // NOTAS SIMPLES
-                const n = parseNote(match[4]);
-                if (n) result.push(n);
-            }
-        }
-        return result;
-    }
-
-    function applyTies(notes) {
-        if (notes.length === 0) return [];
-        const tiedNotes = [];
-        for (let i = 0; i < notes.length; i++) {
-            let current = { ...notes[i] };
-            // Si es un acorde, procesamos sus notas internas si tienen ligadura
-            if (current.isChord) {
-                // Simplificación: la ligadura del acorde afecta a todo el bloque
-                while (current.isTied && i + 1 < notes.length) {
-                    const next = notes[i+1];
-                    current.duration += next.duration;
-                    current.beats += next.beats;
-                    current.isTied = next.isTied;
-                    i++;
-                }
-                tiedNotes.push(current);
-                continue;
-            }
-
-            // Ligadura de notas simples
-            while (current.isTied && i + 1 < notes.length) {
-                const next = notes[i + 1];
-                if (next.isChord) break;
-                current.duration += next.duration;
-                current.beats += next.beats;
-                current.isTied = next.isTied;
-                current.original += " (lig)";
-                i++;
-            }
-            tiedNotes.push(current);
-        }
-        return tiedNotes;
-    }
-
-    function playNote(note, start, isHarmony = false, id = null) {
-        if (!note) return;
-        
-        if (note.isChord) {
-            note.notes.forEach(n => {
-                if(n) playNote({...n, duration: note.duration}, start, isHarmony, id);
-            });
-            return;
-        }
-
-        if (note.freq === 0) return;
-        const osc = audioCtx.createOscillator();
-        const g = audioCtx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(note.freq, start);
-        g.gain.setValueAtTime(0, start);
-        g.gain.linearRampToValueAtTime(isHarmony ? 0.07 : 0.15, start + 0.02);
-        g.gain.exponentialRampToValueAtTime(0.001, start + note.duration);
-        osc.connect(g); g.connect(audioCtx.destination);
-        osc.start(start); osc.stop(start + note.duration);
-
-        const t = setTimeout(() => {
-            const m = isHarmony ? null : document.getElementById('m-MELODY');
-            if (m) m.classList.add('active');
-            
-            const bar = document.getElementById(`bar-${note.name}`);
-            if (bar) {
-                const color = noteColors[note.name] || '#fff';
-                bar.style.height = '60px';
-                bar.style.background = color;
-                if (!isHarmony) {
-                    stage.style.setProperty('--note-color', color + '44');
-                    stage.classList.add('playing');
-                }
-                setTimeout(() => {
-                    bar.style.height = '4px';
-                    bar.style.background = 'rgba(255, 255, 255, 0.2)';
-                    if (!isHarmony) stage.classList.remove('playing');
-                }, note.duration * 900);
-            }
-
-            if (m) setTimeout(() => m.classList.remove('active'), note.duration * 800);
-            
-            if (id) {
-                const kn = document.getElementById(id);
-                if (kn) { 
-                    kn.classList.add('active'); 
-                    kn.scrollIntoView({behavior:'smooth', block:'center'}); 
-                    setTimeout(() => kn.classList.remove('active'), note.duration * 900); 
-                }
-            }
-        }, Math.max(0, (start - audioCtx.currentTime) * 1000));
-        animationTimeouts.push(t);
-    }
-
-    function triggerPerc(time, type) {
-        const osc = audioCtx.createOscillator();
-        const g = audioCtx.createGain();
-        const isBombo = type === "bombo";
-        osc.frequency.setValueAtTime(isBombo ? 60 : 200, time);
-        osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.1);
-        g.gain.setValueAtTime(isBombo ? 0.4 : 0.2, time);
-        g.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
-        osc.connect(g); g.connect(audioCtx.destination);
-        osc.start(time); osc.stop(time + 0.1);
-        setTimeout(() => {
-            const p = document.getElementById('m-PERC');
-            p.classList.add('active'); setTimeout(() => p.classList.remove('active'), 100);
-        }, Math.max(0, (time - audioCtx.currentTime) * 1000));
-    }
-
-    function stopMusic() {
-        if (audioCtx) audioCtx.close();
-        audioCtx = null;
-        animationTimeouts.forEach(clearTimeout);
-        stage.classList.remove('playing');
-        document.querySelectorAll('.v-bar').forEach(b => { b.style.height='4px'; b.style.background='rgba(255,255,255,0.2)'; });
-        document.getElementById('ui-edit').classList.remove('hidden');
-        document.getElementById('playback-view').classList.add('hidden');
-    }
-
-    function playMusic() {
-        stopMusic();
-        audioCtx = new AudioContext();
-        const now = audioCtx.currentTime + 0.1;
-        const rows = document.querySelectorAll('.measure-input');
-        
-        document.getElementById('ui-edit').classList.add('hidden');
-        document.getElementById('playback-view').classList.remove('hidden');
-        document.getElementById('pb-title').innerText = document.getElementById('march-title').value;
-        const container = document.getElementById('notes-container');
-        container.innerHTML = "";
-
-        let allMelody = [];
-        let allHarmony = [];
-
-        rows.forEach(row => {
-            const [m, h] = row.value.split('|');
-            allMelody = allMelody.concat(tokenizePart(m));
-            if (h) allHarmony = allHarmony.concat(tokenizePart(h));
-        });
-
-        const finalMelody = applyTies(allMelody);
-        const finalHarmony = applyTies(allHarmony);
-
-        let mOff = 0;
-        finalMelody.forEach((n, i) => {
-            const id = `kn-${i}`;
-            const span = document.createElement('span');
-            span.className = 'k-note'; span.id = id; span.innerText = n.original;
-            container.appendChild(span);
-            playNote(n, now + mOff, false, id);
-            mOff += n.duration;
-        });
-
-        let hOff = 0;
-        finalHarmony.forEach(n => {
-            playNote(n, now + hOff, true);
-            hOff += n.duration;
-        });
-
-        const targetBeats = getTargetBeats();
-        const bpm = document.getElementById('bpm').value;
-        const beatDur = 60/bpm;
-        for(let i=0; i < rows.length * targetBeats; i++) {
-            triggerPerc(now + (i * beatDur), i % targetBeats === 0 ? "bombo" : "caja");
-        }
-    }
-
-    function validateAll() {
-        document.querySelectorAll('.measure-row').forEach(row => {
-            const input = row.querySelector('.measure-input');
-            const counter = row.querySelector('.measure-counter');
-            const melody = tokenizePart(input.value.split('|')[0]);
-            const total = melody.reduce((acc, n) => acc + n.beats, 0);
-            counter.innerText = total.toFixed(2).replace('.00','') + "/" + getTargetBeats();
-            row.classList.toggle('complete', Math.abs(total - getTargetBeats()) < 0.01);
-            row.classList.toggle('overflow', total > getTargetBeats() + 0.01);
-        });
-    }
-
-    function addMeasure(content = "") {
-        const div = document.createElement('div');
-        div.className = 'measure-row';
-        div.innerHTML = `<button class="row-btn" onclick="playMeasure(this.parentElement)">▶</button>
-            <input class="measure-input" value="${content}" oninput="validateAll()">
-            <span class="measure-counter">0/4</span>
-            <button class="row-btn" onclick="this.parentElement.remove(); validateAll();">X</button>`;
-        document.getElementById('editor').appendChild(div);
+// ── IMPORTAR / EXPORTAR ────────────────────────────────────────────────────────
+function exportToTxt(){
+    const title=document.getElementById('march-title').value;
+    let c=`${title}|BPM:${getBpm()}|TS:${document.getElementById('timeSignature').value}\n`;
+    document.querySelectorAll('.measure-input').forEach(i=>c+=i.value+'\n');
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:'text/plain'}));
+    a.download=`${title}.txt`;a.click();
+}
+function copyToClipboard(){
+    const title=document.getElementById('march-title').value;
+    let c=`${title}|BPM:${getBpm()}|TS:${document.getElementById('timeSignature').value}\n`;
+    document.querySelectorAll('.measure-input').forEach(i=>c+=i.value+'\n');
+    navigator.clipboard.writeText(c).then(()=>{
+        const sb=document.getElementById('status-bar');sb.textContent='✔ Copiado';setTimeout(()=>sb.textContent='',2000);
+    });
+}
+function importFromTxt(input){
+    const file=input.files[0];if(!file)return;const r=new FileReader();
+    r.onload=e=>{
+        const lines=e.target.result.split('\n'),h=lines[0].split('|');
+        if(h.length>=3){document.getElementById('march-title').value=h[0];
+            document.getElementById('bpm').value=h[1].split(':')[1];
+            document.getElementById('bpmValue').textContent=document.getElementById('bpm').value;
+            document.getElementById('timeSignature').value=h[2].split(':')[1];}
+        document.getElementById('editor').innerHTML='';
+        for(let i=1;i<lines.length;i++) if(lines[i].trim()) addMeasure(lines[i].trim());
         validateAll();
-    }
+    };r.readAsText(file);
+}
+function toggleHelp(){const p=document.getElementById('help-panel');p.style.display=p.style.display==='block'?'none':'block';}
 
-    function playMeasure(row) {
-        stopMusic();
-        audioCtx = new AudioContext();
-        const now = audioCtx.currentTime + 0.1;
-        const [m, h] = row.querySelector('.measure-input').value.split('|');
-        const melody = applyTies(tokenizePart(m));
-        let off = 0;
-        melody.forEach(n => { playNote(n, now + off); off += n.duration; });
-        if (h) {
-            let hoff = 0;
-            applyTies(tokenizePart(h)).forEach(n => { playNote(n, now + hoff, true); hoff += n.duration; });
-        }
-        const targetBeats = getTargetBeats();
-        for(let i=0; i<targetBeats; i++) triggerPerc(now + (i*(60/document.getElementById('bpm').value)), i===0?"bombo":"caja");
-    }
-
-    function exportToTxt() {
-        const title = document.getElementById('march-title').value;
-        const bpm = document.getElementById('bpm').value;
-        const ts = document.getElementById('timeSignature').value;
-        let content = `${title}|BPM:${bpm}|TS:${ts}\n`;
-        document.querySelectorAll('.measure-input').forEach(input => {
-            content += input.value + "\n";
-        });
-        const blob = new Blob([content], {type:'text/plain'});
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `${title}.txt`;
-        a.click();
-    }
-
-    function copyToClipboard() {
-        const title = document.getElementById('march-title').value;
-        const bpm = document.getElementById('bpm').value;
-        const ts = document.getElementById('timeSignature').value;
-        let content = `${title}|BPM:${bpm}|TS:${ts}\n`;
-        document.querySelectorAll('.measure-input').forEach(input => {
-            content += input.value + "\n";
-        });
-        navigator.clipboard.writeText(content).then(() => alert("Copiado al portapapeles"));
-    }
-
-    function importFromTxt(input) {
-        const file = input.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const lines = e.target.result.split('\n');
-            const header = lines[0].split('|');
-            if (header.length >= 3) {
-                document.getElementById('march-title').value = header[0];
-                document.getElementById('bpm').value = header[1].split(':')[1];
-                document.getElementById('bpmValue').innerText = document.getElementById('bpm').value;
-                document.getElementById('timeSignature').value = header[2].split(':')[1];
-            }
-            document.getElementById('editor').innerHTML = "";
-            for (let i = 1; i < lines.length; i++) {
-                if (lines[i].trim()) addMeasure(lines[i].trim());
-            }
-            validateAll();
-        };
-        reader.readAsText(file);
-    }
-
-    // CARGA DE CANCIÓN POR DEFECTO
-    window.onload = () => {
-        const defaultSong = [
-            "DO RE (MI FA SOL) | [DO MI SOL]2 _2",
-            "DO RE- RE SOL",            
-        ];
-        defaultSong.forEach(m => addMeasure(m));
-        validateAll();
-    };
-
+window.onload=()=>{
+    [
+        "DO2- DO4 RE4 MI4 | [DO MI SOL]2 _2",
+        "MI4- MI8 MI8 FA4 SOL2 | RE2 SOL2",
+    ].forEach(m=>addMeasure(m));
+    validateAll();
+};
 </script>
 </body>
 </html>
