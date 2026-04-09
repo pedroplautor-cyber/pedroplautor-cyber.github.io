@@ -34,6 +34,7 @@
         }
         input[type=range] { width: 100%; height: 22px; accent-color: var(--green); }
         .select-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .select-row.full { grid-template-columns: 1fr; }
         .file-buttons { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
         select {
             background: #000; color: var(--green); border: 3px solid #5f574f;
@@ -42,6 +43,9 @@
         .sound-panel {
             background: #000; border: 3px solid #333; padding: 10px;
             display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;
+        }
+        .sound-panel.band-mode {
+            grid-template-columns: 1fr; 
         }
         .sound-label { font-size: 7px; color: #888; margin-bottom: 4px; text-align: left; }
         #editor {
@@ -130,22 +134,86 @@
             position: relative; z-index: 10;
             display: flex; gap: 4px; height: 48px;
             align-items: flex-end; justify-content: center;
-            padding: 0 16px; margin-bottom: 200px;
+            padding: 0 16px; margin-bottom: 8px;
         }
         .pb-bar {
             flex: 1; max-width: 18px; min-height: 3px;
             transition: height 0.08s ease, background 0.12s ease;
             border-top: 2px solid rgba(255,255,255,0.4);
         }
-        #pb-stage {
+        
+        /* ══ ESCENARIO (STAGE) ══ */
+        #pb-stage-container {
             position: relative; z-index: 10;
-            display: flex; align-items: flex-end; justify-content: center;
-            gap: 24px; padding: 6px 0 12px;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: flex-end;
+            margin-bottom: 12px;
+            min-height: 130px;
+            background: linear-gradient(180deg, #87CEEB 0%, #87CEEB 70%, #87CEEB 100%);
+            border-radius: 4px;
         }
+        
+        #pb-stage {
+            display: flex; align-items: flex-end; justify-content: center;
+            gap: 2px; padding: 0;
+            flex-wrap: wrap;
+        }
+        
         .pb-musician { display: flex; flex-direction: column; align-items: center; transition: transform 0.08s; }
-        .pb-musician img { width: 68px; height: 96px; object-fit: contain; image-rendering: pixelated; }
-        .pb-musician.active { transform: translateY(-12px); }
-        .musician-label { font-size: 6px; color: #444; margin-top: 2px; }
+        .pb-musician img { width: 48px; height: 64px; object-fit: contain; image-rendering: pixelated; }
+        .pb-musician.active { transform: translateY(-8px); }
+        .musician-label { font-size: 6px; color: #666; margin-top: 2px; text-transform: uppercase; }
+        
+        /* Escenario - Tablado */
+        #pb-stage-floor {
+            width: 100%;
+            height: 20px;
+            background: linear-gradient(180deg, #8B7355 0%, #654321 50%, #4A2F1A 100%);
+            border-top: 3px solid #A0826D;
+            border-bottom: 2px solid #1a1a1a;
+            position: relative;
+        }
+        
+        #pb-stage-floor::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: repeating-linear-gradient(
+                90deg,
+                transparent,
+                transparent 10px,
+                rgba(0,0,0,0.2) 10px,
+                rgba(0,0,0,0.2) 12px
+            );
+        }
+        
+        #pb-stage-curtain {
+            position: absolute;
+            top: -30px;
+            left: 0;
+            right: 0;
+            height: 30px;
+            background: linear-gradient(180deg, #8B0000 0%, #440000 100%);
+            border-bottom: 2px solid #FFD700;
+            z-index: 5;
+        }
+        
+        #pb-stage-curtain::before,
+        #pb-stage-curtain::after {
+            content: '';
+            position: absolute;
+            width: 40px;
+            height: 30px;
+            background: linear-gradient(90deg, #440000 0%, #220000 100%);
+            top: 0;
+        }
+        
+        #pb-stage-curtain::before { left: 0; }
+        #pb-stage-curtain::after { right: 0; }
+
         #pb-stop-btn {
             position: relative; z-index: 10; display: block;
             background: rgba(0,0,0,0.7); color: #666; border: 3px solid #333;
@@ -178,10 +246,6 @@
         .btn-group { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; }
         button { background: var(--pink); color: #fff; border: 4px solid #000; padding: 10px; cursor: pointer; font-family: 'Press Start 2P'; font-size: 9px; }
         #status-bar { font-size: 7px; color: #555; margin-bottom: 4px; min-height: 12px; }
-		
-		
-			
-		
     </style>
 </head>
 <body>
@@ -204,7 +268,16 @@
         </div>
     </div>
 
-    <div class="sound-panel">
+    <div class="controls" style="margin-bottom: 10px;">
+        <div class="select-row full">
+            <select id="bandMode" onchange="updateBandMode()">
+                <option value="duet">DUETO (Melodía + Percusión)</option>
+                <option value="band">BANDA (Múltiples Músicos)</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="sound-panel" id="sound-panel">
         <div>
             <div class="sound-label">🎺 MELODÍA</div>
             <select id="melodyTimbre">
@@ -233,7 +306,8 @@
         <span>DO RE MI FA SOL LA SI</span> + sostenidos: <span>DO# RE# FA# SOL# LA#</span><br>
         <span>_</span> = silencio<br><br>
         <em>── DURACIONES ──</em><br>
-        <span>1</span>=redonda <span>2</span>=blanca <span>4</span>=negra <span>8</span>=corchea <span>.</span>=puntillo<br><br>
+        <span>1</span>=redonda <span>2</span>=blanca <span>4</span>=negra <span>8</span>=corchea <span>16</span>=semicorchea<br>
+        <span>.</span> = puntillo (añade 1/2 de la duración)<br><br>
         <em>── LIGADURAS ──</em><br>
         <span>DO2- DO4</span> liga (misma nota) · <span>DO2- RE4</span> NO liga<br><br>
         <em>── OCTAVAS / ACORDES / TRESILLOS ──</em><br>
@@ -257,12 +331,12 @@
 
 <div class="stage-container" id="stage-edit">
     <div class="mini-visualizer" id="mini-viz"></div>
-    <div class="orchestra-area">
+    <div class="orchestra-area" id="stage-edit-musicians">
         <div class="musician" id="me-PERC">
-            <img src="percusion.png" onerror="this.parentElement.innerHTML='<div style=\'font-size:34px;padding-bottom:6px\'>🥁</div>'">
+            <img src="percusion_band.png" onerror="this.parentElement.innerHTML='<div style=\'font-size:34px;padding-bottom:6px\'>🥁</div>'">
         </div>
         <div class="musician" id="me-MELODY">
-            <img src="melodia.png" onerror="this.parentElement.innerHTML='<div style=\'font-size:34px;padding-bottom:6px\'>🎺</div>'">
+            <img src="melodia_band.png" onerror="this.parentElement.innerHTML='<div style=\'font-size:34px;padding-bottom:6px\'>🎺</div>'">
         </div>
     </div>
 </div>
@@ -278,35 +352,25 @@
     <div id="note-flash"></div>
     
     <div id="note-display">
-	
-		<div id="pb-song-title"></div>
-	
+        <div id="pb-song-title"></div>
         <div id="current-note-name">—</div>
         <div id="beat-track"></div>	
-		<div id="pb-stage">
-			<div class="pb-musician" id="pb-PERC">
-				<img src="percusion.png" onerror="this.parentElement.innerHTML='<div style=\'font-size:44px\'>🥁</div><div class=musician-label>PERC</div>'">
-				<div class="musician-label">PERC</div>
-			</div>
-			<div class="pb-musician" id="pb-MELODY">
-				<img src="melodia.png" onerror="this.parentElement.innerHTML='<div style=\'font-size:44px\'>🎺</div><div class=musician-label>MELODÍA</div>'">
-				<div class="musician-label">MELODÍA</div>
-			</div>					
-		</div>				
-		<div id="notes-scroll-wrap"><div id="notes-scroll"></div></div>    
-		
+        
+        <div id="pb-stage-container">
+            <div id="pb-stage-curtain"></div>
+            <div id="pb-stage"></div>
+            <div id="pb-stage-floor"></div>
+        </div>
+        
+        <div id="notes-scroll-wrap"><div id="notes-scroll"></div></div>    
     </div>
-	
-			
-			<div id="pb-visualizer"></div>	
     
-
-	<div class="btn-group">
-		<button onclick="playMusic()">📯 PLAY</button>
-		<button onclick="stopMusic()" style="background:#333;">⏹ STOP</button>
-	</div>
-
-
+    <div id="pb-visualizer"></div>	
+    
+    <div class="btn-group">
+        <button onclick="playMusic()">📯 PLAY</button>
+        <button onclick="stopMusic()" style="background:#333;">⏹ STOP</button>
+    </div>
 </div>
 
 <script>
@@ -324,21 +388,82 @@ const NOTE_COLORS = {
 };
 const NOTES_LIST = ["DO","DO#","RE","RE#","MI","FA","FA#","SOL","SOL#","LA","LA#","SI"];
 
-// ── VISUALIZADORES ─────────────────────────────────────────────────────────────
-document.getElementById('mini-viz') && NOTES_LIST.forEach(n=>{
-    const b=document.createElement('div'); b.className='v-bar'; b.id=`vbar-${n}`;
-    document.getElementById('mini-viz').appendChild(b);
-});
-NOTES_LIST.forEach(n=>{
-    const b=document.createElement('div'); b.className='pb-bar'; b.id=`pbbar-${n}`;
-    b.style.cssText='height:3px;background:rgba(255,255,255,0.12)';
-    document.getElementById('pb-visualizer').appendChild(b);
-});
-
 // ── ESTADO ─────────────────────────────────────────────────────────────────────
 let audioCtx=null, animTimeouts=[], particleRAF=null;
 let pxCanvas=null, pxCtx=null;
+let bandMode='duet'; // 'duet' o 'band'
+let activeNotes=new Set(); // Notas activas en banda
 const particles=[];
+
+// ── VISUALIZADORES ─────────────────────────────────────────────────────────────
+function initVisualizers(){
+    const miniViz=document.getElementById('mini-viz');
+    if(miniViz){
+        miniViz.innerHTML='';
+        NOTES_LIST.forEach(n=>{
+            const b=document.createElement('div'); b.className='v-bar'; b.id=`vbar-${n}`;
+            miniViz.appendChild(b);
+        });
+    }
+    const pbViz=document.getElementById('pb-visualizer');
+    if(pbViz){
+        pbViz.innerHTML='';
+        NOTES_LIST.forEach(n=>{
+            const b=document.createElement('div'); b.className='pb-bar'; b.id=`pbbar-${n}`;
+            b.style.cssText='height:3px;background:rgba(255,255,255,0.12)';
+            pbViz.appendChild(b);
+        });
+    }
+}
+
+initVisualizers();
+
+// ── MODO BANDA ──────────────────────────────────────────────────────────────────
+function updateBandMode(){
+    bandMode=document.getElementById('bandMode').value;
+    const panel=document.getElementById('sound-panel');
+    if(bandMode==='band'){
+        panel.classList.add('band-mode');
+        // Ocultar selector de timbre individual en banda
+        panel.innerHTML=`
+            <div>
+                <div class="sound-label">🥁 PERCUSIÓN (COMÚN)</div>
+                <select id="percKit">
+                    <option value="classic">CLASSIC 808</option>
+                    <option value="chip8">CHIP 8BIT</option>
+                    <option value="taiko">TAIKO DRUM</option>
+                    <option value="electro">ELECTRO</option>
+                    <option value="march">MARCH COFRADE</option>
+                </select>
+            </div>
+        `;
+    } else {
+        panel.classList.remove('band-mode');
+        panel.innerHTML=`
+            <div>
+                <div class="sound-label">🎺 MELODÍA</div>
+                <select id="melodyTimbre">
+                    <option value="triangle">TRIANGLE</option>
+                    <option value="square">SQUARE</option>
+                    <option value="sawtooth">SAWTOOTH</option>
+                    <option value="sine">SINE</option>
+                    <option value="pulse">PULSE 8BIT</option>
+                    <option value="chip">CHIP LEAD</option>
+                </select>
+            </div>
+            <div>
+                <div class="sound-label">🥁 PERCUSIÓN</div>
+                <select id="percKit">
+                    <option value="classic">CLASSIC 808</option>
+                    <option value="chip8">CHIP 8BIT</option>
+                    <option value="taiko">TAIKO DRUM</option>
+                    <option value="electro">ELECTRO</option>
+                    <option value="march">MARCH COFRADE</option>
+                </select>
+            </div>
+        `;
+    }
+}
 
 // ── KITS PERCUSIÓN ─────────────────────────────────────────────────────────────
 const KITS = {
@@ -428,15 +553,17 @@ const KITS = {
 };
 
 // ── TIMBRES MELODÍA ────────────────────────────────────────────────────────────
-function createMelodySound(ctx, freq, start, duration, gain) {
-    const type=document.getElementById('melodyTimbre').value;
+function createMelodySound(ctx, freq, start, duration, gain, isBandNote=false) {
+    const type=bandMode==='band'?'triangle':document.getElementById('melodyTimbre').value;
     const g=ctx.createGain();
+    const actualGain=isBandNote?gain*0.35:gain;
+    
     if(type==='pulse'){
         const o1=ctx.createOscillator(),o2=ctx.createOscillator();
         o1.type='square';o2.type='square';
         o1.frequency.setValueAtTime(freq,start);o2.frequency.setValueAtTime(freq*1.003,start);
-        g.gain.setValueAtTime(0,start);g.gain.linearRampToValueAtTime(gain*0.55,start+0.01);
-        g.gain.setValueAtTime(gain*0.4,start+duration*0.3);g.gain.exponentialRampToValueAtTime(0.001,start+duration-0.01);
+        g.gain.setValueAtTime(0,start);g.gain.linearRampToValueAtTime(actualGain*0.55,start+0.01);
+        g.gain.setValueAtTime(actualGain*0.4,start+duration*0.3);g.gain.exponentialRampToValueAtTime(0.001,start+duration-0.01);
         o1.connect(g);o2.connect(g);g.connect(ctx.destination);
         o1.start(start);o2.start(start);o1.stop(start+duration);o2.stop(start+duration);
         return;
@@ -445,16 +572,16 @@ function createMelodySound(ctx, freq, start, duration, gain) {
         const o=ctx.createOscillator(),o2=ctx.createOscillator(),g2=ctx.createGain();
         o.type='triangle';o2.type='square';
         o.frequency.setValueAtTime(freq,start);o2.frequency.setValueAtTime(freq*2,start);
-        g.gain.setValueAtTime(0,start);g.gain.linearRampToValueAtTime(gain*0.5,start+0.015);
+        g.gain.setValueAtTime(0,start);g.gain.linearRampToValueAtTime(actualGain*0.5,start+0.015);
         g.gain.exponentialRampToValueAtTime(0.001,start+duration);
-        g2.gain.setValueAtTime(gain*0.06,start);g2.gain.exponentialRampToValueAtTime(0.001,start+duration);
+        g2.gain.setValueAtTime(actualGain*0.06,start);g2.gain.exponentialRampToValueAtTime(0.001,start+duration);
         o.connect(g);o2.connect(g2);g.connect(ctx.destination);g2.connect(ctx.destination);
         o.start(start);o2.start(start);o.stop(start+duration);o2.stop(start+duration);
         return;
     }
     const o=ctx.createOscillator();
     o.type=type;o.frequency.setValueAtTime(freq,start);
-    g.gain.setValueAtTime(0,start);g.gain.linearRampToValueAtTime(gain,start+0.02);
+    g.gain.setValueAtTime(0,start);g.gain.linearRampToValueAtTime(actualGain,start+0.02);
     g.gain.exponentialRampToValueAtTime(0.001,start+duration-0.01);
     o.connect(g);g.connect(ctx.destination);o.start(start);o.stop(start+duration);
 }
@@ -496,21 +623,24 @@ function tickParticles(){
 }
 function burst(color,isBeat){
     const x=isBeat?pxCanvas.width/2:Math.random()*pxCanvas.width;
-    const y=isBeat?pxCanvas.height*0.72:Math.random()*pxCanvas.height*0.55;
+    const y=isBeat?pxCanvas.height*0.42:Math.random()*pxCanvas.height*0.35;
     const n=isBeat?22:9;
     for(let i=0;i<n;i++) particles.push(new Particle(x,y,color));
 }
 
-// ── PARSER (igual versión anterior) ───────────────────────────────────────────
+// ── PARSER (MEJORADO CON PUNTILLO) ─────────────────────────────────────────────
 function getTargetBeats(){const s=document.getElementById('timeSignature').value;return s==="6/8"?3:parseInt(s.split('/')[0]);}
 function getBpm(){return parseFloat(document.getElementById('bpm').value);}
+
 function parseDuration(str){
     const m=str.match(/^([^.]+)(\.*)$/);if(!m)return 1;
     const base=m[1],dots=m[2].length;
     let b;switch(base){case'1':b=4;break;case'2':b=2;break;case'4':b=1;break;case'8':b=0.5;break;
         case'16':b=0.25;break;case'1/2':b=0.5;break;case'1/4':b=0.25;break;default:b=1;}
-    let add=b;for(let i=0;i<dots;i++){add/=2;b+=add;}return b;
+    let add=b;for(let i=0;i<dots;i++){add/=2;b+=add;}
+    return b;
 }
+
 function parseSimpleToken(raw){
     if(!raw)return null;const token=raw.toUpperCase();
     const isTied=token.endsWith('-');const t=isTied?token.slice(0,-1):token;
@@ -524,6 +654,7 @@ function parseSimpleToken(raw){
     const canonName=ENHARMONIC[noteName]||noteName;
     return{freq,duration,beats,isTied,name:noteName||"REST",canonName,octave,original:raw,isRest};
 }
+
 function tokenizePart(text){
     if(!text||!text.trim())return[];const result=[];const upper=text.toUpperCase();
     const regex=/\[([^\]]+)\]([^\s|[({]*)|(\(([^)]+)\))|(\S+)/g;let match;
@@ -542,6 +673,7 @@ function tokenizePart(text){
     }
     return result;
 }
+
 function applyTies(notes){
     if(!notes.length)return[];const out=[];let i=0;
     while(i<notes.length){let cur={...notes[i]};
@@ -570,7 +702,8 @@ function playNote(note,start,isHarmony=false,scrollIdx=null){
     if(note.isRest||note.freq===0){
         if(!isHarmony&&scrollIdx!==null)scheduleVisual(note,start,scrollIdx);return;
     }
-    createMelodySound(audioCtx,note.freq,start,note.duration,isHarmony?0.07:0.15);
+    const isBandNote=bandMode==='band'&&!isHarmony;
+    createMelodySound(audioCtx,note.freq,start,note.duration,0.15,isBandNote);
     if(!isHarmony)scheduleVisual(note,start,scrollIdx);
 }
 
@@ -578,17 +711,13 @@ function scheduleVisual(note, start, scrollIdx) {
     if (!audioCtx) return;
     const delay = Math.max(0, (start - audioCtx.currentTime) * 1000);
     
-    // Obtenemos el nombre "sucio" (ej: "DO#4" o ">MI8")
     let rawName = note.isChord ? (note.notes[0] && note.notes[0].name) : note.name;
-    
-    // Limpiamos para obtener solo la nota base (DO, DO#, etc.) para las barras
-    // Eliminamos números, símbolos de octava y duración
     let cleanNoteName = rawName ? rawName.replace(/[0-9<>._\-]/g, '') : '';
     
     const color = NOTE_COLORS[cleanNoteName] || '#ffffff';
 
     const t = setTimeout(() => {
-        // --- Efecto de Flash ---
+        // Flash
         const fl = document.getElementById('note-flash');
         if (fl) {
             fl.style.background = color;
@@ -596,7 +725,7 @@ function scheduleVisual(note, start, scrollIdx) {
             setTimeout(() => fl.style.opacity = '0', 80);
         }
 
-        // --- Texto de la nota actual ---
+        // Nombre nota
         const ne = document.getElementById('current-note-name');
         if (ne) {
             if (note.isRest) {
@@ -610,13 +739,12 @@ function scheduleVisual(note, start, scrollIdx) {
             }
         }
 
-        // --- BARRAS DEL VISUALIZADOR (La corrección clave) ---
+        // Barras PB
         const pb = document.getElementById(`pbbar-${cleanNoteName}`);
         if (pb) {
             pb.style.height = '48px';
             pb.style.background = color;
             pb.style.boxShadow = `0 0 15px ${color}`;
-            // El tiempo que se queda arriba depende de la duración de la nota
             setTimeout(() => {
                 pb.style.height = '3px';
                 pb.style.background = 'rgba(255,255,255,0.12)';
@@ -624,7 +752,7 @@ function scheduleVisual(note, start, scrollIdx) {
             }, Math.max(100, note.duration * 900)); 
         }
 
-        // --- Mini visualizador (Escena de edición) ---
+        // Mini viz
         const mv = document.getElementById(`vbar-${cleanNoteName}`);
         if (mv) {
             mv.style.height = '44px';
@@ -635,14 +763,27 @@ function scheduleVisual(note, start, scrollIdx) {
             }, Math.max(100, note.duration * 900));
         }
 
-        // --- Animación de los Músicos ---
-        ['me-MELODY', 'pb-MELODY'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) {
-                el.classList.add('active');
-                setTimeout(() => el.classList.remove('active'), 100);
-            }
-        });
+        // Animación músicos
+        if(bandMode==='band'){
+            // En banda, buscar el músico asignado a esa nota
+            const musicianId=getNoteMusician(cleanNoteName);
+            ['pb-'+musicianId,'me-'+musicianId].forEach(id=>{
+                const el=document.getElementById(id);
+                if(el){
+                    el.classList.add('active');
+                    setTimeout(()=>el.classList.remove('active'),100);
+                }
+            });
+        } else {
+            // En dueto
+            ['me-MELODY','pb-MELODY'].forEach(id=>{
+                const el=document.getElementById(id);
+                if(el){
+                    el.classList.add('active');
+                    setTimeout(()=>el.classList.remove('active'),100);
+                }
+            });
+        }
 
         if (scrollIdx !== null) advanceScroll(scrollIdx);
         if (!note.isRest) burst(color, false);
@@ -651,46 +792,8 @@ function scheduleVisual(note, start, scrollIdx) {
     animTimeouts.push(t);
 }
 
-
-function old_scheduleVisual(note,start,scrollIdx){
-    const delay=Math.max(0,(start-audioCtx.currentTime)*1000);
-    
-	//const noteName=note.isChord?(note.notes[0]&&note.notes[0].name):note.name;
-	const noteName=note.isChord?(note.notes[0]&&note.notes[0].original):note.original;
-	console.log(JSON.stringify(note))
-	
-    const color=NOTE_COLORS[noteName]||'#ffffff';
-    const t=setTimeout(()=>{
-        // Flash
-        const fl=document.getElementById('note-flash');
-        if(fl){fl.style.background=color;fl.style.opacity='0.2';setTimeout(()=>fl.style.opacity='0',80);}
-        // Nombre nota
-        const ne=document.getElementById('current-note-name');
-        if(ne){
-            if(note.isRest){ne.textContent='·';ne.style.color='#222';ne.style.textShadow='none';}
-            else{
-				ne.textContent=noteName;
-				ne.style.color=color;ne.style.textShadow=`0 0 40px ${color},0 0 80px ${color}`;
-			}
-        }
-        // Barras PB
-        const pb=document.getElementById(`pbbar-${noteName}`);
-        if(pb){pb.style.height='48px';pb.style.background=color;
-            setTimeout(()=>{pb.style.height='3px';pb.style.background='rgba(255,255,255,0.12)';},Math.max(80,note.duration*850));}
-        // Mini viz
-        const mv=document.getElementById(`vbar-${noteName}`);
-        if(mv){mv.style.height='44px';setTimeout(()=>mv.style.height='3px',Math.max(80,note.duration*850));}
-        // Músicos
-        ['me-MELODY','pb-MELODY'].forEach(id=>{
-            const el=document.getElementById(id);
-            if(el){el.classList.add('active');setTimeout(()=>el.classList.remove('active'),note.duration*800);}
-        });
-        // Scroll
-        if(scrollIdx!==null)advanceScroll(scrollIdx);
-        // Partículas
-        if(!note.isRest)burst(color,false);
-    },delay);
-    animTimeouts.push(t);
+function getNoteMusician(noteName){
+    return NOTES_LIST.indexOf(noteName) >= 0 ? noteName : 'MELODY';
 }
 
 function advanceScroll(idx){
@@ -739,6 +842,92 @@ function updateBeatDots(bi){
     }
 }
 
+// ── ACTUALIZAR ESCENARIO BANDA ─────────────────────────────────────────────────
+function updateBandStage(){
+    const rows=document.querySelectorAll('.measure-input');
+    activeNotes.clear();
+    rows.forEach(row=>{
+        const[m]=row.value.split('|');
+        const tokens=tokenizePart(m);
+        tokens.forEach(t=>{
+            if(!t.isRest){
+                const cn=t.canonName||t.name;
+                activeNotes.add(cn);
+            }
+        });
+    });
+    
+    // Actualizar escenario edición
+    updateEditStage();
+}
+
+function updateEditStage(){
+    const container=document.getElementById('stage-edit-musicians');
+    if(!container)return;
+    
+    if(bandMode==='duet'){
+        container.innerHTML=`
+            <div class="musician" id="me-PERC">
+                <img src="percusion_band.png" onerror="this.parentElement.innerHTML='<div style=\\'font-size:34px;padding-bottom:6px\\'>🥁</div>'">
+            </div>
+            <div class="musician" id="me-MELODY">
+                <img src="melodia_band.png" onerror="this.parentElement.innerHTML='<div style=\\'font-size:34px;padding-bottom:6px\\'>🎺</div>'">
+            </div>
+        `;
+    } else {
+        container.innerHTML=`
+            <div class="musician" id="me-PERC">
+                <img src="percusion_band.png" onerror="this.parentElement.innerHTML='<div style=\\'font-size:34px;padding-bottom:6px\\'>🥁</div>'">
+            </div>
+        `;
+        activeNotes.forEach(note=>{
+            const div=document.createElement('div');
+            div.className='musician';
+            div.id=`me-${note}`;
+            div.innerHTML=`<img src="melodia_band.png" onerror="this.parentElement.innerHTML='<div style=\\'font-size:34px;padding-bottom:6px\\'>🎺</div>'">`;
+            container.appendChild(div);
+        });
+    }
+}
+
+function getNoteEmoji(note){
+    const emojis={'DO':'🎺','DO#':'🎸','RE':'🎷','RE#':'🪕','MI':'🎹','FA':'🎻','FA#':'🥁','SOL':'🎺','SOL#':'🎸','LA':'🎷','LA#':'🪕','SI':'🎹'};
+    return emojis[note]||'🎵';
+}
+
+// ── ACTUALIZAR ESCENARIO REPRODUCCIÓN (BANDA) ──────────────────────────────────
+function createBandPlaybackStage(){
+    const stage=document.getElementById('pb-stage');
+    if(!stage)return;
+    
+    stage.innerHTML='';
+    
+    // Percusión primero
+    const perc=document.createElement('div');
+    perc.className='pb-musician';
+    perc.id='pb-PERC';
+    perc.innerHTML=`<img src="percusion_band.png" onerror="this.parentElement.innerHTML='<div style=\\'font-size:44px\\'>🥁</div><div class=musician-label>PERC</div>'"><div class="musician-label">PERC</div>`;
+    stage.appendChild(perc);
+    
+    // Músicos por nota
+    if(bandMode==='band'){
+        const sortedNotes=Array.from(activeNotes).sort((a,b)=>NOTES_LIST.indexOf(a)-NOTES_LIST.indexOf(b));
+        sortedNotes.forEach(note=>{
+            const div=document.createElement('div');
+            div.className='pb-musician';
+            div.id=`pb-${note}`;
+            div.innerHTML=`<img src="melodia_band.png" onerror="this.innerHTML='<div style=\\'font-size:44px\\'>${getNoteEmoji(note)}</div><div class=musician-label>${note}</div>'"><div class="musician-label">${note}</div>`;
+            stage.appendChild(div);
+        });
+    } else {
+        const melody=document.createElement('div');
+        melody.className='pb-musician';
+        melody.id='pb-MELODY';
+        melody.innerHTML=`<img src="melodia_band.png" onerror="this.parentElement.innerHTML='<div style=\\'font-size:44px\\'>🎺</div><div class=musician-label>MELODÍA</div>'"><div class="musician-label">MELODÍA</div>`;
+        stage.appendChild(melody);
+    }
+}
+
 // ── STOP / PLAY ────────────────────────────────────────────────────────────────
 function stopMusic(){
     if(audioCtx){audioCtx.close();audioCtx=null;}
@@ -752,16 +941,22 @@ function stopMusic(){
 
 function playMusic(){
     stopMusic();
+    updateBandStage();
     audioCtx=new AudioContext();const now=audioCtx.currentTime+0.1;
     const rows=document.querySelectorAll('.measure-input');
     document.getElementById('ui-edit').classList.add('hidden');
     document.getElementById('playback-screen').classList.remove('hidden');
     document.getElementById('pb-song-title').textContent=document.getElementById('march-title').value;
-    buildBeatDots();initParticleCanvas();
+    
+    createBandPlaybackStage();
+    buildBeatDots();
+    initParticleCanvas();
+    
     let allMelody=[],allHarmony=[];
     rows.forEach(row=>{const[m,h]=row.value.split('|');
         allMelody=allMelody.concat(tokenizePart(m));if(h)allHarmony=allHarmony.concat(tokenizePart(h));});
     const fm=applyTies(allMelody),fh=applyTies(allHarmony);
+    
     // Scroll
     const scroll=document.getElementById('notes-scroll');
     scroll.innerHTML='';scroll.style.transform='translateX(0)';
@@ -770,10 +965,13 @@ function playMusic(){
         sp.textContent=n.isChord?`[${n.notes.map(x=>x.original).join('+')}]`:(n.isRest?'·':n.original);
         scroll.appendChild(sp);
     });
+    
     // Melodía
     let mOff=0;fm.forEach((n,i)=>{playNote(n,now+mOff,false,i);mOff+=n.duration;});
+    
     // Armonía
     let hOff=0;fh.forEach(n=>{playNote(n,now+hOff,true);hOff+=n.duration;});
+    
     // Percusión
     const tb=getTargetBeats(),bd=60/getBpm();
     for(let i=0;i<rows.length*tb;i++) triggerPerc(now+i*bd,i%tb===0?'bombo':'caja',i%tb);
@@ -788,7 +986,9 @@ function validateAll(){
         row.classList.toggle('complete',Math.abs(total-target)<0.01);
         row.classList.toggle('overflow',total>target+0.01);
     });
+    if(bandMode==='band') updateBandStage();
 }
+
 function addMeasure(content=''){
     const div=document.createElement('div');div.className='measure-row';
     div.innerHTML=`<button class="row-btn" onclick="playMeasure(this.parentElement)">▶</button>
@@ -797,6 +997,7 @@ function addMeasure(content=''){
          <button class="row-btn" onclick="this.parentElement.remove();validateAll()">X</button>`;
     document.getElementById('editor').appendChild(div);validateAll();
 }
+
 function playMeasure(row){
     if(audioCtx){audioCtx.close();audioCtx=null;}animTimeouts.forEach(clearTimeout);animTimeouts=[];
     audioCtx=new AudioContext();const now=audioCtx.currentTime+0.1;
@@ -841,7 +1042,7 @@ function toggleHelp(){const p=document.getElementById('help-panel');p.style.disp
 
 window.onload=()=>{
     [
-        "DO2- DO4 RE4 MI4 | [DO MI SOL]2 _2",
+        "DO2. DO4 RE4 MI4 | [DO MI SOL]2 _2",
         "MI4- MI8 MI8 FA4 SOL2 | RE2 SOL2",
     ].forEach(m=>addMeasure(m));
     validateAll();
