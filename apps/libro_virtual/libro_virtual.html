@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BookMaker Pro - YAML & Media</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+    <style>
+        :root {
+            --primary: #6c5ce7;
+            --bg: #121212;
+            --card-bg: #1e1e1e;
+            --page-bg: #fffcf2;
+            --text-dark: #2d3436;
+        }
+
+        * { box-sizing: border-box; }
+        body { 
+            margin: 0; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: var(--bg); 
+            color: #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* BARRA SUPERIOR */
+        .top-bar {
+            padding: 10px 15px;
+            display: flex;
+            gap: 8px;
+            background: #000;
+            z-index: 100;
+            overflow-x: auto;
+            border-bottom: 1px solid #333;
+        }
+
+        button {
+            padding: 8px 14px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            white-space: nowrap;
+            font-size: 13px;
+            transition: 0.2s;
+        }
+
+        .btn-edit { background: #fdcb6e; color: #000; }
+        .btn-play { background: #00b894; color: white; }
+        .btn-io { background: #0984e3; color: white; }
+        .btn-rec { background: #d63031; color: white; }
+
+        /* MODO EDICIÓN */
+        #editor-zone {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: block;
+        }
+
+        .section-title { font-size: 14px; color: var(--primary); margin-bottom: 10px; text-transform: uppercase; font-weight: bold; }
+        
+        .edit-card {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #333;
+        }
+
+        label { display: block; margin-bottom: 5px; font-size: 13px; color: #bbb; }
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #444;
+            background: #2d2d2d;
+            color: white;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .file-input-wrapper {
+            margin-top: 10px;
+            padding: 15px;
+            border: 2px dashed #444;
+            text-align: center;
+            border-radius: 8px;
+        }
+
+        #yaml-input { height: 180px; font-size: 12px; line-height: 1.4; border-left: 3px solid var(--primary); }
+
+        /* MODO REPRODUCCIÓN */
+        #player-zone {
+            flex: 1;
+            display: none;
+            perspective: 1500px;
+            align-items: center;
+            justify-content: center;
+            background: #1a1a1a;
+        }
+
+        .book {
+            width: 85vw;
+            height: 65vh;
+            max-width: 400px;
+            max-height: 600px;
+            position: relative;
+            transform-style: preserve-3d;
+        }
+
+        .page {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            transform-origin: left;
+            transform-style: preserve-3d;
+            transition: transform 0.8s cubic-bezier(0.645, 0.045, 0.355, 1);
+            background: var(--page-bg);
+            color: var(--text-dark);
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            padding: 30px;
+            backface-visibility: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            border-radius: 0 10px 10px 0;
+        }
+
+        .page.flipped { transform: rotateY(-180deg); }
+        .page.cover { background: #000; color: white; padding: 0; overflow: hidden; }
+        .page.cover img { width: 100%; height: 100%; object-fit: cover; }
+        .page.cover .overlay { 
+            position: absolute; bottom: 0; width: 100%; padding: 20px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.9));
+        }
+
+        .page p { font-size: 1.2rem; line-height: 1.6; font-family: 'Georgia', serif; }
+
+        #rec-indicator {
+            position: fixed; top: 60px; right: 20px; color: #ff7675; display: none; align-items: center; gap: 5px; font-weight: bold; background: rgba(0,0,0,0.7); padding: 5px 10px; border-radius: 20px;
+        }
+        .dot { width: 10px; height: 10px; background: red; border-radius: 50%; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0; } }
+    </style>
+</head>
+<body>
+
+    <div class="top-bar">
+        <button class="btn-edit" onclick="showMode('edit')">✍️ Editor</button>
+        <button class="btn-play" onclick="showMode('play')">▶️ Reproducir</button>
+        <button class="btn-io" onclick="exportData()">💾 Exportar</button>
+        <button class="btn-io" onclick="document.getElementById('importFile').click()">📂 Importar</button>
+        <button class="btn-rec" id="recBtn" onclick="toggleCapture()">🔴 Grabar</button>
+        <input type="file" id="importFile" style="display:none" accept=".json" onchange="importData(event)">
+    </div>
+
+    <div id="rec-indicator"><div class="dot"></div> GRABANDO</div>
+
+    <div id="editor-zone">
+        <div class="section-title">1. Portada Visual</div>
+        <div class="edit-card">
+            <label>Selecciona imagen de portada:</label>
+            <div class="file-input-wrapper">
+                <input type="file" id="in-image" accept="image/*" onchange="handleImage(event)">
+                <p id="image-status" style="font-size:11px; margin-top:10px; color: #888;">No se ha seleccionado imagen</p>
+            </div>
+        </div>
+
+        <div class="section-title">2. Contenido (Formato YAML)</div>
+        <div class="edit-card">
+            <label>Pega aquí la estructura del libro:</label>
+            <textarea id="yaml-input" placeholder="titulo: Mi Gran Resumen&#10;paginas:&#10;  - Primera idea clave...&#10;  - Segunda idea..."></textarea>
+            <button class="btn-play" style="margin-top:10px; width:100%" onclick="parseYAML()">Actualizar desde YAML</button>
+        </div>
+    </div>
+
+    <div id="player-zone">
+        <div class="book" id="book-container" onclick="nextPage()">
+            </div>
+    </div>
+
+    <script>
+        let bookData = {
+            titulo: "Título del Libro",
+            portadaBase64: "",
+            paginas: ["Página de ejemplo 1", "Página de ejemplo 2"]
+        };
+
+        let currentPage = 0;
+        let isRecording = false;
+        let mediaRecorder;
+        let recordedChunks = [];
+
+        // Inicializar YAML de ejemplo
+        document.getElementById('yaml-input').value = `titulo: "El Principito"\npaginas:\n  - "Lo esencial es invisible a los ojos."\n  - "Eres responsable para siempre de lo que has domesticado."\n  - "Todas las personas mayores fueron al principio niños."`;
+
+        function handleImage(e) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                bookData.portadaBase64 = reader.result;
+                document.getElementById('image-status').innerText = "✅ Imagen cargada correctamente";
+            };
+            if (file) reader.readAsDataURL(file);
+        }
+
+        function parseYAML() {
+            try {
+                const yamlText = document.getElementById('yaml-input').value;
+                const parsed = jsyaml.load(yamlText);
+                if (parsed.titulo) bookData.titulo = parsed.titulo;
+                if (parsed.paginas && Array.isArray(parsed.paginas)) bookData.paginas = parsed.paginas;
+                alert("¡Datos actualizados!");
+            } catch (e) {
+                alert("Error en el formato YAML: " + e.message);
+            }
+        }
+
+        function showMode(mode) {
+            if(mode === 'play') {
+                renderBook();
+                document.getElementById('editor-zone').style.display = 'none';
+                document.getElementById('player-zone').style.display = 'flex';
+            } else {
+                document.getElementById('editor-zone').style.display = 'block';
+                document.getElementById('player-zone').style.display = 'none';
+            }
+        }
+
+        function renderBook() {
+            const container = document.getElementById('book-container');
+            let html = `
+                <div class="page cover" style="z-index: ${bookData.paginas.length + 1}">
+                    ${bookData.portadaBase64 ? `<img src="${bookData.portadaBase64}">` : `<div style="padding:20px">Sin Portada</div>`}
+                    <div class="overlay">
+                        <h2>${bookData.titulo}</h2>
+                        <small>Haz clic para abrir</small>
+                    </div>
+                </div>
+            `;
+
+            bookData.paginas.forEach((txt, i) => {
+                html += `
+                    <div class="page" style="z-index: ${bookData.paginas.length - i}">
+                        <p>${txt}</p>
+                        <small style="position:absolute; bottom:20px; color:#aaa">${i + 1} / ${bookData.paginas.length}</small>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+            currentPage = 0;
+        }
+
+        function nextPage() {
+            const pages = document.querySelectorAll('.page');
+            if(currentPage < pages.length) {
+                pages[currentPage].classList.add('flipped');
+                currentPage++;
+            } else {
+                pages.forEach(p => p.classList.remove('flipped'));
+                currentPage = 0;
+            }
+        }
+
+        // EXPORTAR / IMPORTAR
+        function exportData() {
+            const dataStr = JSON.stringify(bookData);
+            const blob = new Blob([dataStr], {type: "application/json"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "mi-libro-proyecto.json";
+            a.click();
+        }
+
+        function importData(e) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                bookData = JSON.parse(event.target.result);
+                document.getElementById('yaml-input').value = jsyaml.dump({titulo: bookData.titulo, paginas: bookData.paginas});
+                document.getElementById('image-status').innerText = bookData.portadaBase64 ? "✅ Imagen cargada" : "Sin imagen";
+                alert("Proyecto cargado.");
+            };
+            reader.readAsText(file);
+        }
+
+        // GRABACIÓN
+        async function toggleCapture() {
+            if(!isRecording) {
+                try {
+                    const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    recordedChunks = [];
+                    mediaRecorder.ondataavailable = e => recordedChunks.push(e.data);
+                    mediaRecorder.onstop = () => {
+                        const blob = new Blob(recordedChunks, {type: 'video/webm'});
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'video-libro.webm';
+                        a.click();
+                    };
+                    mediaRecorder.start();
+                    isRecording = true;
+                    document.getElementById('rec-indicator').style.display = 'flex';
+                    showMode('play');
+                } catch(e) { alert("Error al grabar: " + e.message); }
+            } else {
+                mediaRecorder.stop();
+                isRecording = false;
+                document.getElementById('rec-indicator').style.display = 'none';
+                mediaRecorder.stream.getTracks().forEach(t => t.stop());
+            }
+        }
+    </script>
+</body>
+</html>
