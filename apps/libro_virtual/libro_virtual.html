@@ -3,21 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BookMaker Pro - YAML & Media</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+    <title>BookMaker Pro - Markdown Edition</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Baskervvville&family=Inter:wght@400;900&display=swap" rel="stylesheet">
+    
     <style>
         :root {
             --primary: #6c5ce7;
-            --bg: #121212;
+            --bg: #121214;
             --card-bg: #1e1e1e;
-            --page-bg: #fffcf2;
-            --text-dark: #2d3436;
+            --page-bg: #fdfaf3;
+            --ink-color: rgba(58, 58, 58, 0.9);
+            --grid-color: rgba(108, 92, 231, 0.08);
         }
 
         * { box-sizing: border-box; }
+        
         body { 
             margin: 0; 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            font-family: 'Inter', sans-serif; 
             background: var(--bg); 
             color: #e0e0e0;
             display: flex;
@@ -26,26 +32,23 @@
             overflow: hidden;
         }
 
-        /* BARRA SUPERIOR */
+        /* BARRA DE HERRAMIENTAS */
         .top-bar {
-            padding: 10px 15px;
+            padding: 10px;
             display: flex;
-            gap: 8px;
+            gap: 10px;
             background: #000;
-            z-index: 100;
-            overflow-x: auto;
+            z-index: 1000;
             border-bottom: 1px solid #333;
         }
 
         button {
-            padding: 8px 14px;
+            padding: 10px 16px;
             border-radius: 6px;
             border: none;
             cursor: pointer;
             font-weight: 600;
-            white-space: nowrap;
-            font-size: 13px;
-            transition: 0.2s;
+            transition: 0.3s;
         }
 
         .btn-edit { background: #fdcb6e; color: #000; }
@@ -54,59 +57,41 @@
         .btn-rec { background: #d63031; color: white; }
 
         /* MODO EDICIÓN */
-        #editor-zone {
-            flex: 1;
-            padding: 15px;
-            overflow-y: auto;
-            display: block;
+        #editor-zone { flex: 1; padding: 20px; overflow-y: auto; display: block; }
+        .edit-card { 
+            background: var(--card-bg); 
+            padding: 20px; 
+            border-radius: 12px; 
+            margin-bottom: 20px; 
+            border: 1px solid #333; 
+            max-width: 800px;
+            margin: 0 auto 20px;
         }
-
-        .section-title { font-size: 14px; color: var(--primary); margin-bottom: 10px; text-transform: uppercase; font-weight: bold; }
         
-        .edit-card {
-            background: var(--card-bg);
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 15px;
-            border: 1px solid #333;
-        }
-
-        label { display: block; margin-bottom: 5px; font-size: 13px; color: #bbb; }
-        input[type="text"], textarea {
-            width: 100%;
-            padding: 10px;
-            border-radius: 5px;
+        input[type="text"], textarea { 
+            width: 100%; 
+            padding: 12px; 
+            border-radius: 6px; 
+            background: #2d2d2d; 
+            color: #fff; 
             border: 1px solid #444;
-            background: #2d2d2d;
-            color: white;
-            font-family: 'Courier New', Courier, monospace;
         }
 
-        .file-input-wrapper {
-            margin-top: 10px;
-            padding: 15px;
-            border: 2px dashed #444;
-            text-align: center;
-            border-radius: 8px;
-        }
-
-        #yaml-input { height: 180px; font-size: 12px; line-height: 1.4; border-left: 3px solid var(--primary); }
-
+        textarea { font-family: monospace; min-height: 300px; resize: vertical; }
+        
         /* MODO REPRODUCCIÓN */
         #player-zone {
             flex: 1;
             display: none;
-            perspective: 1500px;
+            perspective: 2000px;
             align-items: center;
             justify-content: center;
-            background: #1a1a1a;
+            background: #1a1a1b;
         }
 
         .book {
-            width: 85vw;
-            height: 65vh;
-            max-width: 400px;
-            max-height: 600px;
+            width: 450px;
+            height: 650px;
             position: relative;
             transform-style: preserve-3d;
         }
@@ -118,35 +103,48 @@
             top: 0;
             left: 0;
             transform-origin: left;
-            transform-style: preserve-3d;
-            transition: transform 0.8s cubic-bezier(0.645, 0.045, 0.355, 1);
+            transition: transform 1s cubic-bezier(0.645, 0.045, 0.355, 1);
             background: var(--page-bg);
-            color: var(--text-dark);
-            box-shadow: 0 0 20px rgba(0,0,0,0.8);
-            padding: 30px;
+            color: var(--ink-color);
+            box-shadow: inset 3px 0 10px rgba(0,0,0,0.1), 2px 0 15px rgba(0,0,0,0.5);
             backface-visibility: hidden;
+            border-radius: 2px 10px 10px 2px;
+            padding: 40px;
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            border-radius: 0 10px 10px 0;
+            cursor: pointer;
         }
 
         .page.flipped { transform: rotateY(-180deg); }
-        .page.cover { background: #000; color: white; padding: 0; overflow: hidden; }
-        .page.cover img { width: 100%; height: 100%; object-fit: cover; }
-        .page.cover .overlay { 
-            position: absolute; bottom: 0; width: 100%; padding: 20px;
-            background: linear-gradient(transparent, rgba(0,0,0,0.9));
+        
+        .page.notebook-mode {
+            background-image: linear-gradient(var(--grid-color) 1px, transparent 1px), linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: 25px 25px;
+            border-left: 15px solid #e2ddd3;
         }
 
-        .page p { font-size: 1.2rem; line-height: 1.6; font-family: 'Georgia', serif; }
+        /* MINI PORTADA EN PÁGINAS */
+        .mini-thumb {
+            width: 100px;
+            height: 140px;
+            object-fit: cover;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+            align-self: flex-end;
+        }
+
+        .markdown-content { font-family: 'Baskervvville', serif; font-size: 1.1rem; flex-grow: 1; overflow-y: auto; }
+        .page-number { position: absolute; bottom: 20px; right: 30px; font-weight: bold; opacity: 0.5; }
+
+        .page.cover { justify-content: center; align-items: center; background: #2c3e50; color: white; text-align: center; }
+        .cover-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1; opacity: 0.5; }
 
         #rec-indicator {
-            position: fixed; top: 60px; right: 20px; color: #ff7675; display: none; align-items: center; gap: 5px; font-weight: bold; background: rgba(0,0,0,0.7); padding: 5px 10px; border-radius: 20px;
+            position: fixed; top: 75px; right: 20px; color: #ff7675; display: none; align-items: center; gap: 8px;
+            background: rgba(0,0,0,0.9); padding: 10px 20px; border-radius: 30px; font-weight: bold; z-index: 2000;
         }
-        .dot { width: 10px; height: 10px; background: red; border-radius: 50%; animation: blink 1s infinite; }
+        .dot { width: 12px; height: 12px; background: red; border-radius: 50%; animation: blink 1s infinite; }
         @keyframes blink { 50% { opacity: 0; } }
     </style>
 </head>
@@ -154,109 +152,105 @@
 
     <div class="top-bar">
         <button class="btn-edit" onclick="showMode('edit')">✍️ Editor</button>
-        <button class="btn-play" onclick="showMode('play')">▶️ Reproducir</button>
-        <button class="btn-io" onclick="exportData()">💾 Exportar</button>
-        <button class="btn-io" onclick="document.getElementById('importFile').click()">📂 Importar</button>
-        <button class="btn-rec" id="recBtn" onclick="toggleCapture()">🔴 Grabar</button>
+        <button class="btn-play" onclick="showMode('play')">▶️ Ver Libro</button>
+        <button class="btn-io" onclick="exportData()">💾 Guardar JSON</button>
+        <button class="btn-io" onclick="document.getElementById('importFile').click()">📂 Cargar JSON</button>
+        <button class="btn-rec" onclick="toggleCapture()">🔴 Grabar</button>
         <input type="file" id="importFile" style="display:none" accept=".json" onchange="importData(event)">
     </div>
 
     <div id="rec-indicator"><div class="dot"></div> GRABANDO</div>
 
     <div id="editor-zone">
-        <div class="section-title">1. Portada Visual</div>
         <div class="edit-card">
-            <label>Selecciona imagen de portada:</label>
-            <div class="file-input-wrapper">
-                <input type="file" id="in-image" accept="image/*" onchange="handleImage(event)">
-                <p id="image-status" style="font-size:11px; margin-top:10px; color: #888;">No se ha seleccionado imagen</p>
-            </div>
+            <label>Título del Libro:</label>
+            <input type="text" id="in-title" placeholder="Escribe el título aquí...">
+            
+            <label style="margin-top:15px; display:block;">Imagen de Portada:</label>
+            <input type="file" id="in-image" accept="image/*" onchange="handleImage(event)">
+            
+            <label style="margin-top:15px; display:block;">
+                <input type="checkbox" id="check-notebook" checked> Modo Libreta (Cuadrícula)
+            </label>
         </div>
 
-        <div class="section-title">2. Contenido (Formato YAML)</div>
         <div class="edit-card">
-            <label>Pega aquí la estructura del libro:</label>
-            <textarea id="yaml-input" placeholder="titulo: Mi Gran Resumen&#10;paginas:&#10;  - Primera idea clave...&#10;  - Segunda idea..."></textarea>
-            <button class="btn-play" style="margin-top:10px; width:100%" onclick="parseYAML()">Actualizar desde YAML</button>
+            <label>Contenido Markdown (Usa '---' para separar páginas):</label>
+            <textarea id="markdown-input" placeholder="Escribe tu contenido aquí... separa las páginas con tres guiones ---"></textarea>
         </div>
     </div>
 
     <div id="player-zone">
-        <div class="book" id="book-container" onclick="nextPage()">
-            </div>
+        <div class="book" id="book-container" onclick="nextPage()"></div>
     </div>
 
     <script>
+        mermaid.initialize({ startOnLoad: false, theme: 'neutral' });
+
         let bookData = {
-            titulo: "Título del Libro",
+            titulo: "",
             portadaBase64: "",
-            paginas: ["Página de ejemplo 1", "Página de ejemplo 2"]
+            rawMarkdown: "",
+            esLibreta: true
         };
 
         let currentPage = 0;
         let isRecording = false;
-        let mediaRecorder;
-        let recordedChunks = [];
-
-        // Inicializar YAML de ejemplo
-        document.getElementById('yaml-input').value = `titulo: "El Principito"\npaginas:\n  - "Lo esencial es invisible a los ojos."\n  - "Eres responsable para siempre de lo que has domesticado."\n  - "Todas las personas mayores fueron al principio niños."`;
 
         function handleImage(e) {
             const file = e.target.files[0];
             const reader = new FileReader();
-            reader.onloadend = () => {
-                bookData.portadaBase64 = reader.result;
-                document.getElementById('image-status').innerText = "✅ Imagen cargada correctamente";
-            };
+            reader.onloadend = () => { bookData.portadaBase64 = reader.result; };
             if (file) reader.readAsDataURL(file);
         }
 
-        function parseYAML() {
-            try {
-                const yamlText = document.getElementById('yaml-input').value;
-                const parsed = jsyaml.load(yamlText);
-                if (parsed.titulo) bookData.titulo = parsed.titulo;
-                if (parsed.paginas && Array.isArray(parsed.paginas)) bookData.paginas = parsed.paginas;
-                alert("¡Datos actualizados!");
-            } catch (e) {
-                alert("Error en el formato YAML: " + e.message);
-            }
-        }
-
-        function showMode(mode) {
-            if(mode === 'play') {
-                renderBook();
-                document.getElementById('editor-zone').style.display = 'none';
-                document.getElementById('player-zone').style.display = 'flex';
-            } else {
-                document.getElementById('editor-zone').style.display = 'block';
-                document.getElementById('player-zone').style.display = 'none';
-            }
-        }
-
-        function renderBook() {
+        async function renderBook() {
             const container = document.getElementById('book-container');
+            bookData.titulo = document.getElementById('in-title').value || "Sin Título";
+            bookData.rawMarkdown = document.getElementById('markdown-input').value;
+            bookData.esLibreta = document.getElementById('check-notebook').checked;
+
+            const notebookClass = bookData.esLibreta ? 'notebook-mode' : '';
+            const pagesRaw = bookData.rawMarkdown.split(/\n---\n|---/);
+            
+            // Portada
             let html = `
-                <div class="page cover" style="z-index: ${bookData.paginas.length + 1}">
-                    ${bookData.portadaBase64 ? `<img src="${bookData.portadaBase64}">` : `<div style="padding:20px">Sin Portada</div>`}
-                    <div class="overlay">
-                        <h2>${bookData.titulo}</h2>
-                        <small>Haz clic para abrir</small>
-                    </div>
+                <div class="page cover" style="z-index: ${pagesRaw.length + 1}">
+                    ${bookData.portadaBase64 ? `<img src="${bookData.portadaBase64}" class="cover-img">` : ''}
+                    <h1>${bookData.titulo}</h1>
+                    <p style="opacity: 0.7;">Haz clic para abrir</p>
                 </div>
             `;
 
-            bookData.paginas.forEach((txt, i) => {
+            // Páginas con miniatura
+            pagesRaw.forEach((content, i) => {
+                if (content.trim() === "") return;
+                const renderedContent = marked.parse(content);
                 html += `
-                    <div class="page" style="z-index: ${bookData.paginas.length - i}">
-                        <p>${txt}</p>
-                        <small style="position:absolute; bottom:20px; color:#aaa">${i + 1} / ${bookData.paginas.length}</small>
+                    <div class="page ${notebookClass}" style="z-index: ${pagesRaw.length - i}">
+                        ${bookData.portadaBase64 ? `<img src="${bookData.portadaBase64}" class="mini-thumb">` : '<div style="height:20px"></div>'}
+                        <div class="markdown-content">${renderedContent}</div>
+                        <div class="page-number">${i + 1}</div>
                     </div>
                 `;
             });
 
             container.innerHTML = html;
             currentPage = 0;
+            
+            setTimeout(async () => { await mermaid.run(); }, 100);
+        }
+
+        function showMode(mode) {
+            if(mode === 'play') {
+                renderBook().then(() => {
+                    document.getElementById('editor-zone').style.display = 'none';
+                    document.getElementById('player-zone').style.display = 'flex';
+                });
+            } else {
+                document.getElementById('editor-zone').style.display = 'block';
+                document.getElementById('player-zone').style.display = 'none';
+            }
         }
 
         function nextPage() {
@@ -270,55 +264,49 @@
             }
         }
 
-        // EXPORTAR / IMPORTAR
         function exportData() {
-            const dataStr = JSON.stringify(bookData);
-            const blob = new Blob([dataStr], {type: "application/json"});
-            const url = URL.createObjectURL(blob);
+            bookData.titulo = document.getElementById('in-title').value;
+            bookData.rawMarkdown = document.getElementById('markdown-input').value;
+            bookData.esLibreta = document.getElementById('check-notebook').checked;
+            const blob = new Blob([JSON.stringify(bookData)], {type: "application/json"});
             const a = document.createElement('a');
-            a.href = url;
-            a.download = "mi-libro-proyecto.json";
+            a.href = URL.createObjectURL(blob);
+            a.download = `libro.json`;
             a.click();
         }
 
         function importData(e) {
-            const file = e.target.files[0];
             const reader = new FileReader();
-            reader.onload = (event) => {
-                bookData = JSON.parse(event.target.result);
-                document.getElementById('yaml-input').value = jsyaml.dump({titulo: bookData.titulo, paginas: bookData.paginas});
-                document.getElementById('image-status').innerText = bookData.portadaBase64 ? "✅ Imagen cargada" : "Sin imagen";
+            reader.onload = (ev) => {
+                const data = JSON.parse(ev.target.result);
+                document.getElementById('in-title').value = data.titulo;
+                document.getElementById('markdown-input').value = data.rawMarkdown;
+                document.getElementById('check-notebook').checked = data.esLibreta;
+                bookData = data;
                 alert("Proyecto cargado.");
             };
-            reader.readAsText(file);
+            reader.readAsText(e.target.files[0]);
         }
 
-        // GRABACIÓN
         async function toggleCapture() {
             if(!isRecording) {
                 try {
                     const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-                    mediaRecorder = new MediaRecorder(stream);
-                    recordedChunks = [];
-                    mediaRecorder.ondataavailable = e => recordedChunks.push(e.data);
-                    mediaRecorder.onstop = () => {
-                        const blob = new Blob(recordedChunks, {type: 'video/webm'});
+                    const recorder = new MediaRecorder(stream);
+                    const chunks = [];
+                    recorder.ondataavailable = e => chunks.push(e.data);
+                    recorder.onstop = () => {
+                        const blob = new Blob(chunks, {type: 'video/webm'});
                         const url = URL.createObjectURL(blob);
                         const a = document.createElement('a');
-                        a.href = url;
-                        a.download = 'video-libro.webm';
-                        a.click();
+                        a.href = url; a.download = `captura.webm`; a.click();
                     };
-                    mediaRecorder.start();
+                    recorder.start();
                     isRecording = true;
                     document.getElementById('rec-indicator').style.display = 'flex';
-                    showMode('play');
-                } catch(e) { alert("Error al grabar: " + e.message); }
+                } catch(e) { console.error(e); }
             } else {
-                mediaRecorder.stop();
-                isRecording = false;
-                document.getElementById('rec-indicator').style.display = 'none';
-                mediaRecorder.stream.getTracks().forEach(t => t.stop());
+                location.reload(); 
             }
         }
     </script>
