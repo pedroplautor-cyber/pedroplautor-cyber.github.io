@@ -320,6 +320,18 @@
             <button onclick="copyToClipboard()">📋 COPIAR</button>
             <button onclick="document.getElementById('importFile').click()">📂 IMPORT</button>
         </div>
+        <div class="file-buttons">
+            <button onclick="exportToMidi()" style="grid-column:1/3;">🎼 MIDI</button>
+            <button onclick="toggleMidiOptions()" style="font-size:7px;padding:8px;">⚙</button>
+        </div>
+        <div id="midi-options" class="hidden" style="padding:8px;background:#111;border:2px solid #5f574f;font-size:7px;color:#888;gap:4px;display:flex;flex-direction:column;">
+            <label style="color:#aaa;">
+                <input type="checkbox" id="midiIncludeHarmony" checked> Incluir armonía
+            </label>
+            <label style="color:#aaa;">
+                <input type="checkbox" id="midiSeparateChannels"> Canales separados (banda)
+            </label>
+        </div>
         <input type="file" id="importFile" style="display:none" onchange="importFromTxt(this)">
     </div>
 </div>
@@ -396,7 +408,7 @@ const particles=[];
 let scoreMap = [];
 let scoreBeatTimes = []; // scoreBeatTimes[measureIdx][beatIdx] = audioCtxTime
 
-// ── VISUALIZADORES ─────────────────────────────────────────────────────────────
+// ── VISUALIZADORES ─────────────────────────────────────────────────────────
 function initVisualizers(){
     const miniViz=document.getElementById('mini-viz');
     if(miniViz){
@@ -1227,6 +1239,190 @@ function playMeasure(row){
     for(let i=0;i<tb;i++) triggerPerc(now+i*(60/getBpm()),i===0?'bombo':'caja',i);
 }
 
+// ── CONVERTIR A MIDI ───────────────────────────────────────────────────────────
+function exportToMidi(){
+    const title=document.getElementById('march-title').value;
+    const bpm=getBpm();
+    const ts=document.getElementById('timeSignature').value;
+    const includeHarmony=document.getElementById('midiIncludeHarmony').checked;
+    const separateChannels=document.getElementById('midiSeparateChannels').checked;
+    
+    const rows=document.querySelectorAll('.measure-input');
+    const measureMelody=[],measureHarmony=[];
+    rows.forEach(row=>{
+        const[m,h]=row.value.split('|');
+        measureMelody.push(applyTies(tokenizePart(m||'')));
+        measureHarmony.push(applyTies(tokenizePart(h||'')));
+    });
+    
+    const midiFile=createMidiFile(title,bpm,ts,measureMelody,measureHarmony,includeHarmony,separateChannels);
+    const blob=new Blob([midiFile],{type:'audio/midi'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=`${title}.mid`;
+    a.click();
+    
+    const sb=document.getElementById('status-bar');
+    sb.textContent='✔ MIDI exportado';
+    setTimeout(()=>sb.textContent='',2000);
+}
+
+function createMidiFile(title,bpm,ts,measureMelody,measureHarmony,includeHarmony,separateChannels){
+    const ticksPerBeat=480;
+    const quarterNoteDuration=60000000/bpm;
+    
+    // Parsear signature de tiempo
+    const[tsNum,tsDen]=ts.split('/').map(Number);
+    const beatType=4/tsDen;
+    
+    let events=[];
+    let currentTick=0;
+    
+    // Eventos de meta: título, tempo
+    events.push({tick:0,type:'meta',data:{type:0x03,text:title}});
+    events.push({tick:0,type:'meta',data:{type:0x51,tempo:Math.round(quarterNoteDuration)}});
+    events.push({tick:0,type:'meta',data:{type:0x58,numerator:tsNum,denominator:tsDen}});
+    
+    // Canal 0: melodía, Canal 9: percusión, Canales 1+: armonía (si bandMode)
+    const melodyChannel=0,harmonyStartChannel=1,drumChannel=9;
+    
+    measureMelody.forEach((melody,mi)=>{
+        const harmony=measureHarmony[mi]||[];
+        
+        melody.forEach((note,ni)=>{
+            const ticks=Math.round(note.beats*ticksPerBeat*beatType);
+            
+            if(!note.isRest){
+                const midiNote=frequencyToMidi(note.freq);
+                events.push({tick:currentTick,type:'noteOn',channel:melodyChannel,note:midiNote,velocity:100});
+                events.push({tick:currentTick+ticks,type:'noteOff',channel:melodyChannel,note:midiNote});
+            }
+            
+            if(note.isChord&&note.notes){
+                note.notes.forEach(n=>{
+                    const midiNote=frequencyToMidi(n.freq);
+                    events.push({tick:currentTick,type:'noteOn',channel:melodyChannel,note:midiNote,velocity:80});
+                    events.push({tick:currentTick+ticks,type:'noteOff',channel:melodyChannel,note:midiNote});
+                });
+            }
+            
+            currentTick+=ticks;
+        });
+        
+        // Armonía
+        if(includeHarmony){
+            let harmonyTick=currentTick-melody.reduce((a,n)=>a+Math.round(n.beats*ticksPerBeat*beatType),0);
+            harmony.forEach((note,hi)=>{
+                const ticks=Math.round(note.beats*ticksPerBeat*beatType);
+                const harmonyChannel=separateChannels?Math.min(harmonyStartChannel+hi,15):melodyChannel;
+                
+                if(!note.isRest){
+                    const midiNote=frequencyToMidi(note.freq);
+                    events.push({tick:harmonyTick,type:'noteOn',channel:harmonyChannel,note:midiNote,velocity:70});
+                    events.push({tick:harmonyTick+ticks,type:'noteOff',channel:harmonyChannel,note:midiNote});
+                }
+                
+                if(note.isChord&&note.notes){
+                    note.notes.forEach(n=>{
+                        const midiNote=frequencyToMidi(n.freq);
+                        events.push({tick:harmonyTick,type:'noteOn',channel:harmonyChannel,note:midiNote,velocity:60});
+                        events.push({tick:harmonyTick+ticks,type:'noteOff',channel:harmonyChannel,note:midiNote});
+                    });
+                }
+                
+                harmonyTick+=ticks;
+            });
+        }
+    });
+    
+    // Percusión
+    const beatTicks=ticksPerBeat*beatType;
+    const tb=tsNum;
+    let percTick=0;
+    const measureCount=measureMelody.length;
+    for(let i=0;i<measureCount*tb;i++){
+        const kickNote=36;
+        const snareNote=38;
+        events.push({tick:percTick,type:'noteOn',channel:drumChannel,note:i%tb===0?kickNote:snareNote,velocity:100});
+        events.push({tick:percTick+Math.round(beatTicks*0.3),type:'noteOff',channel:drumChannel,note:i%tb===0?kickNote:snareNote});
+        percTick+=beatTicks;
+    }
+    
+    // Ordenar eventos
+    events.sort((a,b)=>a.tick-b.tick);
+    
+    // Construir MIDI
+    const tracks=[constructTrack(events)];
+    return buildMidiFile(tracks,ticksPerBeat);
+}
+
+function frequencyToMidi(freq){
+    if(!freq||freq<=0) return 60;
+    return Math.round(12*Math.log2(freq/440)+69);
+}
+
+function constructTrack(events){
+    let data=[];
+    let lastTick=0;
+    
+    for(let evt of events){
+        const delta=evt.tick-lastTick;
+        data.push(...encodeVariableLength(delta));
+        
+        if(evt.type==='meta'){
+            data.push(0xFF,evt.data.type);
+            if(evt.data.type===0x03){
+                const text=evt.data.text;
+                data.push(text.length,...Array.from(text).map(c=>c.charCodeAt(0)));
+            } else if(evt.data.type===0x51){
+                data.push(3,(evt.data.tempo>>16)&0xFF,(evt.data.tempo>>8)&0xFF,evt.data.tempo&0xFF);
+            } else if(evt.data.type===0x58){
+                data.push(4,evt.data.numerator,Math.log2(evt.data.denominator),0x18,0x08);
+            }
+        } else if(evt.type==='noteOn'){
+            data.push(0x90|evt.channel,evt.note,evt.velocity);
+        } else if(evt.type==='noteOff'){
+            data.push(0x80|evt.channel,evt.note,0x40);
+        }
+        
+        lastTick=evt.tick;
+    }
+    
+    data.push(0x00,0xFF,0x2F,0x00);
+    return data;
+}
+
+function encodeVariableLength(val){
+    let bytes=[val&0x7F];
+    val>>=7;
+    while(val){
+        bytes.unshift((val&0x7F)|0x80);
+        val>>=7;
+    }
+    return bytes;
+}
+
+function buildMidiFile(tracks,ticksPerBeat){
+    const data=[];
+    
+    // Header
+    const header=[0x4D,0x54,0x68,0x64];
+    const headerLength=6;
+    const format=0;
+    const trackCount=tracks.length;
+    data.push(...header,0,0,0,headerLength,0,format,0,trackCount,(ticksPerBeat>>8)&0xFF,ticksPerBeat&0xFF);
+    
+    // Tracks
+    for(let track of tracks){
+        const trackHeader=[0x4D,0x54,0x72,0x6B];
+        const trackLength=track.length;
+        data.push(...trackHeader,(trackLength>>24)&0xFF,(trackLength>>16)&0xFF,(trackLength>>8)&0xFF,trackLength&0xFF);
+        data.push(...track);
+    }
+    
+    return new Uint8Array(data);
+}
+
 // ── IMPORTAR / EXPORTAR ────────────────────────────────────────────────────────
 function exportToTxt(){
     const title=document.getElementById('march-title').value;
@@ -1257,6 +1453,7 @@ function importFromTxt(input){
     };r.readAsText(file);
 }
 function toggleHelp(){const p=document.getElementById('help-panel');p.style.display=p.style.display==='block'?'none':'block';}
+function toggleMidiOptions(){const p=document.getElementById('midi-options');p.classList.toggle('hidden');}
 
 window.onload=()=>{
     [
