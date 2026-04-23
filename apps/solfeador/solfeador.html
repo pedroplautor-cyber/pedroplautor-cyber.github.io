@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Solfeo Móvil</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: system-ui, -apple-system, sans-serif; 
+            display: flex; align-items: center; justify-content: center; 
+            min-height: 100vh; margin: 0; background-color: #121212; color: white;
+        }
+        .card { 
+            background: #1e1e1e; padding: 1.5rem; border-radius: 25px; 
+            width: 90%; max-width: 400px; text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .target-box { background: #007bff; padding: 20px; border-radius: 20px; margin-bottom: 20px; }
+        .target-note { font-size: 4rem; font-weight: 900; display: block; }
+        
+        .user-view { margin: 20px 0; border: 2px solid #333; border-radius: 20px; padding: 15px; }
+        .current-note { font-size: 2.5rem; color: #00ff88; font-weight: bold; }
+        
+        .meter-container { 
+            position: relative; width: 100%; height: 40px; 
+            background: #333; border-radius: 20px; margin: 20px 0; overflow: hidden; 
+        }
+        .center-mark { 
+            position: absolute; left: 50%; width: 4px; height: 100%; 
+            background: #00ff88; z-index: 2; transform: translateX(-50%); 
+        }
+        .pointer { 
+            position: absolute; top: 0; left: 50%; width: 8px; height: 100%; 
+            background: #ff4757; z-index: 3; transition: left 0.1s ease; border-radius: 4px;
+        }
+        
+        button { 
+            background: #fff; color: #000; border: none; padding: 18px; 
+            border-radius: 15px; cursor: pointer; font-size: 1.2rem; 
+            width: 100%; font-weight: bold; -webkit-tap-highlight-color: transparent;
+        }
+        .status { font-size: 0.9rem; color: #888; margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div class="target-box">
+        <span style="font-size: 0.8rem; opacity: 0.8;">OBJETIVO</span>
+        <span class="target-note" id="targetNoteDisplay">--</span>
+    </div>
+
+    <div class="user-view">
+        <div class="current-note" id="userNoteDisplay">--</div>
+        <div id="freqDisplay" style="color: #666; font-size: 0.9rem;">0 Hz</div>
+    </div>
+
+    <div class="meter-container">
+        <div class="center-mark"></div>
+        <div class="pointer" id="pointer"></div>
+    </div>
+
+    <button id="btnMain">EMPEZAR / SIGUIENTE</button>
+    <div class="status" id="statusText">Pulsa el botón para activar micro</div>
+</div>
+
+<script>
+    const noteNamesES = ["Do", "Do#", "Re", "Re#", "Mi", "Fa", "Fa#", "Sol", "Sol#", "La", "La#", "Si"];
+    const targetNotes = [
+        { name: "Do", freq: 261.63 }, { name: "Re", freq: 293.66 },
+        { name: "Mi", freq: 329.63 }, { name: "Fa", freq: 349.23 },
+        { name: "Sol", freq: 392.00 }, { name: "La", freq: 440.00 },
+        { name: "Si", freq: 493.88 }
+    ];
+
+    let audioCtx = null;
+    let analyser = null;
+    let currentTarget = null;
+    let buffer = new Float32Array(2048);
+
+    document.getElementById('btnMain').addEventListener('click', async () => {
+        // En Android, el AudioContext DEBE activarse tras un click
+        if (!audioCtx) {
+            try {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Configuración especial para evitar filtros de voz de Android
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        autoGainControl: false
+                    } 
+                });
+                
+                const source = audioCtx.createMediaStreamSource(stream);
+                analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 2048;
+                source.connect(analyser);
+                
+                document.getElementById('statusText').innerText = "Escuchando...";
+                render();
+            } catch (err) {
+                alert("Error al acceder al micro: " + err);
+            }
+        }
+        
+        // Si el contexto estaba en pausa (común en móviles), lo reanudamos
+        if (audioCtx.state === 'suspended') {
+            await audioCtx.resume();
+        }
+
+        currentTarget = targetNotes[Math.floor(Math.random() * targetNotes.length)];
+        document.getElementById('targetNoteDisplay').innerText = currentTarget.name;
+    });
+
+    function render() {
+        requestAnimationFrame(render);
+        analyser.getFloatTimeDomainData(buffer);
+        const freq = autoCorrelate(buffer, audioCtx.sampleRate);
+
+        if (freq !== -1 && freq > 60 && freq < 1000) {
+            // Obtener nota que el usuario canta
+            const n = 12 * Math.log2(freq / 440) + 69;
+            const noteIndex = Math.round(n) % 12;
+            const userNote = noteNamesES[(noteIndex + 12) % 12];
+
+            document.getElementById('userNoteDisplay').innerText = userNote;
+            document.getElementById('freqDisplay').innerText = Math.round(freq) + " Hz";
+
+            if (currentTarget) {
+                const cents = 1200 * Math.log2(freq / currentTarget.freq);
+                let visualPos = 50 + (cents / 2); 
+                visualPos = Math.max(5, Math.min(95, visualPos));
+                document.getElementById('pointer').style.left = visualPos + "%";
+            }
+        } else {
+            document.getElementById('userNoteDisplay').innerText = "--";
+            document.getElementById('pointer').style.left = "50%";
+        }
+    }
+
+    function autoCorrelate(buf, sampleRate) {
+        let SIZE = buf.length;
+        let rms = 0;
+        for (let i=0; i<SIZE; i++) { rms += buf[i]*buf[i]; }
+        if (Math.sqrt(rms/SIZE) < 0.01) return -1;
+
+        let r1=0, r2=SIZE-1, thres=0.2;
+        for (let i=0; i<SIZE/2; i++) if (Math.abs(buf[i]) < thres) { r1=i; break; }
+        for (let i=1; i<SIZE/2; i++) if (Math.abs(buf[SIZE-i]) < thres) { r2=SIZE-i; break; }
+        buf = buf.slice(r1,r2);
+        SIZE = buf.length;
+
+        let c = new Array(SIZE).fill(0);
+        for (let i=0; i<SIZE; i++)
+            for (let j=0; j<SIZE-i; j++)
+                c[i] = c[i] + buf[j]*buf[j+i];
+
+        let d=0; while (c[d]>c[d+1]) d++;
+        let maxval=-1, maxpos=-1;
+        for (let i=d; i<SIZE; i++) {
+            if (c[i] > maxval) { maxval = c[i]; maxpos = i; }
+        }
+        return sampleRate/maxpos;
+    }
+</script>
+
+</body>
+</html>
