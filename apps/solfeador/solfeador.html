@@ -1,3 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solfeo Pro</title>
+    <style>
+        /* Estilos simplificados para evitar conflictos en Android */
+        body { 
+            margin: 0; 
+            padding: 20px; 
+            background-color: #1a1a1a; 
+            color: #ffffff; 
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 400px;
+            background: #2d2d2d;
+            border-radius: 20px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .target-box {
+            background: #007bff;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+        .target-note { font-size: 4rem; font-weight: bold; display: block; }
+        
+        .user-view { 
+            margin: 20px 0; 
+            padding: 15px; 
+            border: 2px solid #444; 
+            border-radius: 15px; 
+        }
+        .current-note { font-size: 3rem; color: #00ff88; font-weight: bold; }
+        
+        .meter-container { 
+            position: relative; 
+            width: 100%; 
+            height: 30px; 
+            background: #444; 
+            border-radius: 15px; 
+            margin: 20px 0; 
+            overflow: hidden;
+        }
+        .center-mark { 
+            position: absolute; left: 50%; width: 4px; height: 100%; 
+            background: #00ff88; transform: translateX(-50%); z-index: 1;
+        }
+        .pointer { 
+            position: absolute; top: 0; left: 50%; width: 10px; height: 100%; 
+            background: #ff4757; z-index: 2; border-radius: 5px;
+        }
+        
+        button { 
+            background: #ffffff; 
+            color: #000000; 
+            border: none; 
+            padding: 20px; 
+            border-radius: 15px; 
+            font-size: 1.2rem; 
+            font-weight: bold;
+            width: 100%;
+            margin-top: 10px;
+        }
+        #freqDisplay { color: #888; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="target-box">
+        <div style="font-size: 0.9rem;">CANTA ESTA NOTA:</div>
+        <div class="target-note" id="targetNoteDisplay">--</div>
+    </div>
+
+    <div class="user-view">
+        <div style="font-size: 0.9rem; color: #ccc;">TU VOZ:</div>
+        <div class="current-note" id="userNoteDisplay">--</div>
+        <div id="freqDisplay">0 Hz</div>
+    </div>
+
+    <div class="meter-container">
+        <div class="center-mark"></div>
+        <div id="pointer" class="pointer"></div>
+    </div>
+
+    <button id="btnMain">EMPEZAR / SIGUIENTE</button>
+</div>
+
 <script>
     const noteNamesES = ["Do", "Do#", "Re", "Re#", "Mi", "Fa", "Fa#", "Sol", "Sol#", "La", "La#", "Si"];
     const targetNotes = [
@@ -12,66 +109,64 @@
     let currentTarget = null;
     let buffer = new Float32Array(2048);
 
-    document.getElementById('btnMain').addEventListener('click', async () => {
+    const btn = document.getElementById('btnMain');
+    const targetDisplay = document.getElementById('targetNoteDisplay');
+    const userDisplay = document.getElementById('userNoteDisplay');
+    const freqDisplay = document.getElementById('freqDisplay');
+    const pointer = document.getElementById('pointer');
+
+    btn.onclick = async () => {
         if (!audioCtx) {
             try {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                
-                // Pedimos el micro de forma más abierta para evitar bloqueos de sistema
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                
                 const source = audioCtx.createMediaStreamSource(stream);
                 analyser = audioCtx.createAnalyser();
                 analyser.fftSize = 2048;
                 source.connect(analyser);
-                
-                document.getElementById('statusText').innerText = "¡Conectado! Canta fuerte.";
-                render();
+                update();
             } catch (err) {
-                alert("Error técnico: " + err.name);
+                alert("Error de micro: " + err);
             }
         }
         
         if (audioCtx.state === 'suspended') await audioCtx.resume();
 
         currentTarget = targetNotes[Math.floor(Math.random() * targetNotes.length)];
-        document.getElementById('targetNoteDisplay').innerText = currentTarget.name;
-    });
+        targetDisplay.innerText = currentTarget.name;
+    };
 
-    function render() {
-        requestAnimationFrame(render);
+    function update() {
+        requestAnimationFrame(update);
         analyser.getFloatTimeDomainData(buffer);
         
-        // Calculamos el volumen (RMS) para ver si llega señal
-        let rms = 0;
-        for (let i = 0; i < buffer.length; i++) { rms += buffer[i] * buffer[i]; }
-        let volume = Math.sqrt(rms / buffer.length);
+        // Calcular volumen
+        let sum = 0;
+        for (let i = 0; i < buffer.length; i++) sum += buffer[i] * buffer[i];
+        let vol = Math.sqrt(sum / buffer.length);
 
-        // Si el volumen es mayor a 0.005 (muy sensible), intentamos detectar tono
-        if (volume > 0.005) {
+        if (vol > 0.01) {
             const freq = autoCorrelate(buffer, audioCtx.sampleRate);
-            if (freq !== -1 && freq > 60 && freq < 1200) {
+            if (freq !== -1 && freq > 50 && freq < 1000) {
                 const n = 12 * Math.log2(freq / 440) + 69;
                 const noteIndex = Math.round(n) % 12;
-                document.getElementById('userNoteDisplay').innerText = noteNamesES[(noteIndex + 12) % 12];
-                document.getElementById('freqDisplay').innerText = Math.round(freq) + " Hz";
+                userDisplay.innerText = noteNamesES[(noteIndex + 12) % 12];
+                freqDisplay.innerText = Math.round(freq) + " Hz";
 
                 if (currentTarget) {
                     const cents = 1200 * Math.log2(freq / currentTarget.freq);
-                    let visualPos = 50 + (cents / 2); 
-                    visualPos = Math.max(5, Math.min(95, visualPos));
-                    document.getElementById('pointer').style.left = visualPos + "%";
-                    document.getElementById('pointer').style.backgroundColor = Math.abs(cents) < 30 ? "#00ff88" : "#ff4757";
+                    let pos = 50 + (cents / 2);
+                    pos = Math.max(5, Math.min(95, pos));
+                    pointer.style.left = pos + "%";
                 }
             }
         } else {
-            // Si no hay volumen, mostramos que está en silencio
-            document.getElementById('freqDisplay').innerText = "Esperando sonido...";
+            userDisplay.innerText = "--";
+            pointer.style.left = "50%";
         }
     }
 
     function autoCorrelate(buf, sampleRate) {
-        // Algoritmo de detección optimizado
         let SIZE = buf.length;
         let c = new Array(SIZE).fill(0);
         for (let i=0; i<SIZE; i++)
@@ -86,3 +181,5 @@
         return sampleRate/maxpos;
     }
 </script>
+</body>
+</html>
