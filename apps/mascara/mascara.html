@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Editor PNG Interactivo</title>
+    <style>
+        :root { --primary: #007AFF; --success: #34c759; --bg: #f5f5f7; }
+        body {
+            font-family: -apple-system, system-ui, sans-serif;
+            background-color: var(--bg);
+            margin: 0; padding: 20px;
+            display: flex; flex-direction: column; align-items: center;
+            touch-action: none; /* Previene scroll accidental mientras mueves la imagen */
+        }
+        .app-card {
+            width: 100%; max-width: 450px;
+            background: white; padding: 20px;
+            border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+        }
+        .field { margin-bottom: 15px; }
+        label { display: block; font-size: 11px; text-transform: uppercase; color: #888; margin-bottom: 5px; font-weight: bold; }
+        .preview-container {
+            width: 100%; aspect-ratio: 1/1;
+            background: #e0e0e0; border-radius: 12px;
+            margin: 15px 0; overflow: hidden;
+            position: relative; border: 1px solid #ddd;
+            display: flex; justify-content: center; align-items: center;
+        }
+        canvas { max-width: 100%; max-height: 100%; touch-action: none; }
+        .controls { display: flex; flex-direction: column; gap: 15px; }
+        input[type="range"] { width: 100%; margin: 10px 0; }
+        button {
+            width: 100%; padding: 15px; border: none;
+            border-radius: 12px; font-size: 16px; font-weight: 600;
+            color: white; cursor: pointer;
+        }
+        #btn-download { background: var(--success); margin-top: 10px; }
+        .hint { font-size: 12px; color: #666; text-align: center; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="app-card">
+    <div class="field">
+        <label>1. Fondo (Arrastrable)</label>
+        <input type="file" id="bg-input" accept="image/*">
+    </div>
+    <div class="field">
+        <label>2. Overlay (Fijo)</label>
+        <input type="file" id="fg-input" accept="image/*">
+    </div>
+
+    <div class="field" id="zoom-control" style="display:none">
+        <label>Zoom del Fondo:</label>
+        <input type="range" id="zoom-range" min="0.1" max="3" step="0.01" value="1">
+    </div>
+
+    <div class="hint">Toca y arrastra el canvas para mover el fondo</div>
+
+    <div class="preview-container">
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <div class="controls">
+        <button id="btn-download" style="display:none">Guardar Imagen</button>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const zoomRange = document.getElementById('zoom-range');
+    
+    let imgBg = null, imgFg = null;
+    let posX = 0, posY = 0, scale = 1;
+    let isDragging = false, lastX, lastY;
+
+    // Cargar Imágenes
+    const setupImage = (input, callback) => {
+        input.onchange = (e) => {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => { callback(img); draw(); };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(e.target.files[0]);
+        };
+    };
+
+    setupImage(document.getElementById('bg-input'), (img) => {
+        imgBg = img;
+        document.getElementById('zoom-control').style.display = 'block';
+        // Reset posición al cargar nueva imagen
+        posX = 0; posY = 0; scale = 1; zoomRange.value = 1;
+        // Ajustamos el canvas al tamaño del primer fondo cargado
+        canvas.width = img.width;
+        canvas.height = img.height;
+        document.getElementById('btn-download').style.display = 'block';
+    });
+
+    setupImage(document.getElementById('fg-input'), (img) => imgFg = img);
+
+    function draw() {
+        if (!imgBg) return;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Dibujar Fondo con transformaciones
+        ctx.save();
+        ctx.translate(posX, posY);
+        ctx.scale(scale, scale);
+        ctx.drawImage(imgBg, 0, 0);
+        ctx.restore();
+
+        // Dibujar Overlay ajustado al tamaño total del canvas
+        if (imgFg) {
+            ctx.drawImage(imgFg, 0, 0, canvas.width, canvas.height);
+        }
+    }
+
+    // Interacción Táctil y Ratón
+    const startDrag = (e) => {
+        isDragging = true;
+        const pos = e.touches ? e.touches[0] : e;
+        lastX = pos.clientX;
+        lastY = pos.clientY;
+    };
+
+    const doDrag = (e) => {
+        if (!isDragging || !imgBg) return;
+        const pos = e.touches ? e.touches[0] : e;
+        const deltaX = pos.clientX - lastX;
+        const deltaY = pos.clientY - lastY;
+        
+        posX += deltaX;
+        posY += deltaY;
+        lastX = pos.clientX;
+        lastY = pos.clientY;
+        draw();
+    };
+
+    const stopDrag = () => isDragging = false;
+
+    canvas.addEventListener('mousedown', startDrag);
+    window.addEventListener('mousemove', doDrag);
+    window.addEventListener('mouseup', stopDrag);
+
+    canvas.addEventListener('touchstart', startDrag);
+    window.addEventListener('touchmove', doDrag);
+    window.addEventListener('touchend', stopDrag);
+
+    zoomRange.oninput = (e) => {
+        scale = parseFloat(e.target.value);
+        draw();
+    };
+
+    document.getElementById('btn-download').onclick = () => {
+        const link = document.createElement('a');
+        link.download = 'composicion.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    };
+</script>
+
+</body>
+</html>
