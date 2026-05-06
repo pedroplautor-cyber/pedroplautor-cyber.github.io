@@ -70,6 +70,40 @@
         #help-panel span { color: var(--green); }
         #help-panel em { color: var(--gold); font-style: normal; }
 
+        /* ── IMAGEN CARGA ── */
+        .image-upload-panel {
+            background: #000; border: 3px solid #5f574f; padding: 10px;
+            margin-bottom: 8px; display: flex; flex-direction: column; gap: 8px;
+        }
+        .image-upload-label {
+            font-size: 7px; color: #888; text-align: left; margin-bottom: 2px;
+        }
+        .image-upload-row {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: center;
+        }
+        .img-preview-wrap {
+            position: relative; width: 100%; aspect-ratio: 2/1;
+            border: 2px solid #333; overflow: hidden; background: #111;
+            display: flex; align-items: center; justify-content: center;
+        }
+        #img-preview-canvas {
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            width: 100%; height: 100%;
+            object-fit: contain;
+        }
+        .img-placeholder {
+            font-size: 7px; color: #444; pointer-events: none;
+        }
+        .pixel-size-row {
+            display: flex; flex-direction: column; gap: 4px; font-size: 7px; color: #666;
+        }
+        .btn-clear-img {
+            font-size: 7px; padding: 6px; background: #1a0000; color: #ff4444;
+            border: 2px solid #ff2222; cursor: pointer; font-family: 'Press Start 2P';
+            display: none;
+        }
+
         /* ══ PANTALLA REPRODUCCIÓN (TEMA CLARO) ══ */
         #playback-screen {
             position: fixed; inset: 0; z-index: 100;
@@ -113,6 +147,31 @@
         .pb-musician-mini.active { transform: translateY(-6px); }
         .pb-musician-mini.active .musician-label { color: #000000; }
 
+        /* ══ IMAGEN PIXEL ART EN REPRODUCCIÓN ══ */
+        #pb-pixel-image-wrap {
+            position: relative; z-index: 10;
+            width: 100%; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            overflow: hidden;
+            background: #f0f0f0;
+            border-bottom: 2px solid rgba(0,0,0,0.15);
+        }
+        #pb-pixel-canvas {
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            display: block;
+            /* size set dynamically */
+        }
+        /* Pulse animado sobre la imagen cuando suena una nota */
+        #pb-pixel-image-wrap.note-pulse {
+            animation: imgPulse 0.12s ease-out;
+        }
+        @keyframes imgPulse {
+            0%   { filter: brightness(1); }
+            40%  { filter: brightness(1.22) saturate(1.4); }
+            100% { filter: brightness(1); }
+        }
+
         /* ══ BEAT DOTS - HIDDEN ══ */
         #beat-bar { display: none; }
 
@@ -132,7 +191,6 @@
             transition: transform 0.3s cubic-bezier(0.25,0.46,0.45,0.94);
             will-change: transform;
         }
-        /* Cada compás es una tabla con columnas = subdivisiones */
         .score-measure-wrap {
             display: flex; align-items: stretch; gap: 2px; flex-shrink: 0;
         }
@@ -142,9 +200,7 @@
         }
         .score-measure-table {
             flex: 1; display: grid; gap: 2px;
-            /* columns set dynamically via inline style */
         }
-        /* Fila de melodía y de armonía dentro de cada compás */
         .score-mel-row, .score-harm-row {
             display: contents;
         }
@@ -296,6 +352,31 @@
         </div>
     </div>
 
+    <!-- ── PANEL CARGA DE IMAGEN ── -->
+    <div class="image-upload-panel">
+        <div class="image-upload-label">🖼 IMAGEN EN REPRODUCCIÓN (pixel art)</div>
+        <div class="image-upload-row">
+            <div class="img-preview-wrap">
+                <canvas id="img-preview-canvas" width="128" height="64"></canvas>
+                <div class="img-placeholder" id="img-placeholder">SIN IMAGEN</div>
+            </div>
+            <div class="pixel-size-row">
+                <span>RESOLUCIÓN PIXEL:</span>
+                <select id="pixelResolution" onchange="reapplyPixelArt()" style="font-size:7px;padding:5px;">
+                    <option value="2">2px · MEGA</option>
+                    <option value="6">6px · ULTRA</option>
+                    <option value="8" selected>8px · RETRO</option>
+                    <option value="12">12px · MICRO</option>
+                    <option value="16">16px · NANO</option>
+                </select>
+                <button onclick="document.getElementById('customImageFile').click()" style="font-size:7px;padding:7px;background:#003300;border-color:var(--green);">📂 CARGAR</button>
+                <button class="btn-clear-img" id="btn-clear-img" onclick="clearCustomImage()">✕ QUITAR</button>
+            </div>
+        </div>
+        <input type="file" id="customImageFile" accept="image/*" style="display:none" onchange="loadCustomImage(this)">
+    </div>
+    <!-- ── FIN PANEL IMAGEN ── -->
+
     <div id="help-panel">
         <em>── NOTAS ──</em><br>
         <span>DO RE MI FA SOL LA SI</span> + sostenidos: <span>DO# RE# FA# SOL# LA#</span><br>
@@ -361,8 +442,13 @@
 
     <div id="pb-song-title"></div>
 
-    <!-- Músicos compactos -->
+    <!-- Músicos compactos (se ocultan si hay imagen) -->
     <div id="pb-musicians-bar"></div>
+
+    <!-- Imagen pixel art en reproducción (oculta si no hay imagen) -->
+    <div id="pb-pixel-image-wrap" class="hidden">
+        <canvas id="pb-pixel-canvas"></canvas>
+    </div>
 
     <!-- Beat dots -->
     <div id="beat-bar"><div id="beat-track"></div></div>
@@ -403,10 +489,155 @@ let bandMode='duet';
 let activeNotes=new Set();
 const particles=[];
 
+// Estado de imagen personalizada
+let customImageSrc = null;       // data URL original
+let customPixelCanvas = null;    // offscreen canvas con efecto pixel art
+
 // Estructura de la partitura para karaoke
-// scoreMap[measureIdx][beatIdx] = [{noteEl, color, isHarmony}]
 let scoreMap = [];
-let scoreBeatTimes = []; // scoreBeatTimes[measureIdx][beatIdx] = audioCtxTime
+let scoreBeatTimes = [];
+
+// ── IMAGEN PERSONALIZADA ────────────────────────────────────────────────────────
+function loadCustomImage(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        customImageSrc = e.target.result;
+        applyPixelArt(customImageSrc);
+    };
+    reader.readAsDataURL(file);
+    // reset input para permitir recargar el mismo fichero
+    input.value = '';
+}
+
+function applyPixelArt(src) {
+    if (!src) return;
+    const img = new Image();
+    img.onload = () => {
+        const blockSize = parseInt(document.getElementById('pixelResolution').value) || 8;
+
+        // Canvas de preview en el editor (128x64 lógicos, aparece estirado por CSS)
+        const previewCanvas = document.getElementById('img-preview-canvas');
+        const pCtx = previewCanvas.getContext('2d');
+
+        // Dimensiones lógicas del preview
+        const PW = previewCanvas.width;   // 128
+        const PH = previewCanvas.height;  // 64
+
+        // Calcular step en espacio lógico del preview
+        const stepX = blockSize * (PW / previewCanvas.offsetWidth || 1);
+        const stepY = blockSize * (PH / previewCanvas.offsetHeight || 1);
+
+        // Dibujar imagen original a tamaño pequeño (pixelado)
+        const tmpW = Math.max(2, Math.floor(PW / blockSize));
+        const tmpH = Math.max(2, Math.floor(PH / blockSize));
+        const tmp = document.createElement('canvas');
+        tmp.width = tmpW; tmp.height = tmpH;
+        const tCtx = tmp.getContext('2d');
+        tCtx.drawImage(img, 0, 0, tmpW, tmpH);
+
+        // Escalar de vuelta con pixelación
+        pCtx.imageSmoothingEnabled = false;
+        pCtx.clearRect(0, 0, PW, PH);
+        pCtx.drawImage(tmp, 0, 0, PW, PH);
+
+        // Guardar canvas offscreen para reproducción (mayor resolución)
+        // Usamos 256x128 para el canvas de reproducción
+        const PBW = 256, PBH = 128;
+        const pbTmpW = Math.max(2, Math.floor(PBW / blockSize));
+        const pbTmpH = Math.max(2, Math.floor(PBH / blockSize));
+        const pbTmp = document.createElement('canvas');
+        pbTmp.width = pbTmpW; pbTmp.height = pbTmpH;
+        const pbTCtx = pbTmp.getContext('2d');
+        pbTCtx.drawImage(img, 0, 0, pbTmpW, pbTmpH);
+
+        customPixelCanvas = document.createElement('canvas');
+        customPixelCanvas.width = PBW; customPixelCanvas.height = PBH;
+        const cpCtx = customPixelCanvas.getContext('2d');
+        cpCtx.imageSmoothingEnabled = false;
+        cpCtx.drawImage(pbTmp, 0, 0, PBW, PBH);
+
+        // Mostrar preview y botón quitar; ocultar placeholder
+        document.getElementById('img-placeholder').style.display = 'none';
+        document.getElementById('btn-clear-img').style.display = 'block';
+
+        const sb = document.getElementById('status-bar');
+        sb.textContent = '✔ Imagen cargada';
+        setTimeout(() => sb.textContent = '', 2000);
+    };
+    img.src = src;
+}
+
+function reapplyPixelArt() {
+    if (customImageSrc) applyPixelArt(customImageSrc);
+}
+
+function clearCustomImage() {
+    customImageSrc = null;
+    customPixelCanvas = null;
+    const previewCanvas = document.getElementById('img-preview-canvas');
+    const pCtx = previewCanvas.getContext('2d');
+    pCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+    document.getElementById('img-placeholder').style.display = '';
+    document.getElementById('btn-clear-img').style.display = 'none';
+
+    const sb = document.getElementById('status-bar');
+    sb.textContent = '✔ Imagen eliminada';
+    setTimeout(() => sb.textContent = '', 2000);
+}
+
+// Render de la imagen pixel art en la pantalla de reproducción
+function renderPlaybackPixelImage() {
+    const wrap = document.getElementById('pb-pixel-image-wrap');
+    const pbCanvas = document.getElementById('pb-pixel-canvas');
+
+    if (!customPixelCanvas) {
+        wrap.classList.add('hidden');
+        document.getElementById('pb-musicians-bar').classList.remove('hidden');
+        return;
+    }
+
+    // Ocultar barra de músicos; mostrar imagen
+    document.getElementById('pb-musicians-bar').classList.add('hidden');
+    wrap.classList.remove('hidden');
+
+    // Adaptar tamaño del canvas al ancho de pantalla manteniendo ratio
+    const screenW = window.innerWidth;
+    const ratio = customPixelCanvas.height / customPixelCanvas.width;
+    const displayH = Math.round(screenW * ratio);
+    pbCanvas.width = customPixelCanvas.width;
+    pbCanvas.height = customPixelCanvas.height;
+    pbCanvas.style.width = screenW + 'px';
+    pbCanvas.style.height = displayH + 'px';
+    wrap.style.height = displayH + 'px';
+
+    const ctx = pbCanvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(customPixelCanvas, 0, 0);
+}
+
+// Pulso visual sobre la imagen al sonar una nota
+function pulsePixelImage(color) {
+    const wrap = document.getElementById('pb-pixel-image-wrap');
+    if (!wrap || wrap.classList.contains('hidden')) return;
+    // Tinte rápido con overlay en canvas
+    const pbCanvas = document.getElementById('pb-pixel-canvas');
+    if (!pbCanvas) return;
+    const ctx = pbCanvas.getContext('2d');
+    ctx.save();
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle = color || '#ffffff';
+    ctx.fillRect(0, 0, pbCanvas.width, pbCanvas.height);
+    ctx.restore();
+    // Restaurar tras breve delay
+    setTimeout(() => {
+        if (!customPixelCanvas) return;
+        ctx.clearRect(0, 0, pbCanvas.width, pbCanvas.height);
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(customPixelCanvas, 0, 0);
+    }, 90);
+}
 
 // ── VISUALIZADORES ─────────────────────────────────────────────────────────
 function initVisualizers(){
@@ -696,19 +927,14 @@ function applyTies(notes){
 }
 
 // ── CONSTRUIR PARTITURA KARAOKE ────────────────────────────────────────────────
-// Para cada compás construimos una lista de "segmentos" (nota + cuántos beats ocupa)
-// La cuadrícula usa el MCD de subdivisiones para poder hacer colspan correcto.
-// Estrategia simple: subdivisions = tb*4 (semicorcheas), cada nota ocupa round(beats*4) columnas.
-
 function buildScoreData(measureMelody, measureHarmony) {
     const tb = getTargetBeats();
-    const SUBS = tb * 4; // subdivisiones por compás (en unidades de semicorchea)
+    const SUBS = tb * 4;
     const measures = [];
 
     measureMelody.forEach((mel, mi) => {
         const har = measureHarmony[mi] || [];
 
-        // Convertir notas a segmentos con columnas
         function notesToSegments(notes) {
             const segs = [];
             let colCursor = 0;
@@ -717,7 +943,6 @@ function buildScoreData(measureMelody, measureHarmony) {
                 segs.push({ note, startCol: colCursor, cols });
                 colCursor += cols;
             });
-            // Si sobra o falta, ajustar último segmento para llenar SUBS
             if(segs.length > 0) {
                 const total = segs.reduce((a,s)=>a+s.cols,0);
                 if(total !== SUBS) segs[segs.length-1].cols += (SUBS - total);
@@ -734,7 +959,6 @@ function buildScoreData(measureMelody, measureHarmony) {
     return measures;
 }
 
-// scoreMap[mi] = { wrapEl, melCells:[{cellEl, noteEls, startCol, cols, note}], harCells:[...] }
 function renderScoreData(measuresData) {
     const scroll = document.getElementById('karaoke-scroll');
     scroll.innerHTML = '';
@@ -753,10 +977,8 @@ function renderScoreData(measuresData) {
         numEl.textContent = mi + 1;
         wrap.appendChild(numEl);
 
-        // Tabla CSS grid con SUBS columnas
         const table = document.createElement('div');
         table.className = 'score-measure-table';
-        // Dos filas: melodía + armonía (si existe)
         const rowCount = hasHarmony ? 2 : 1;
         table.style.gridTemplateColumns = `repeat(${SUBS}, 1fr)`;
         table.style.gridTemplateRows = hasHarmony ? 'auto auto' : 'auto';
@@ -765,7 +987,6 @@ function renderScoreData(measuresData) {
         const melCells = [];
         const harCells = [];
 
-        // Fila melodía
         melSegs.forEach((seg, si) => {
             const cell = document.createElement('div');
             cell.className = 'score-beat-cell';
@@ -773,7 +994,6 @@ function renderScoreData(measuresData) {
             cell.style.gridColumn = `${seg.startCol+1} / span ${seg.cols}`;
             cell.style.gridRow = '1';
 
-            // Etiqueta de tiempo (beat número) si está en inicio de beat
             const beatNum = Math.round(seg.startCol / 4);
             if(seg.startCol % 4 === 0 && beatNum < getTargetBeats()) {
                 const lbl = document.createElement('div');
@@ -797,7 +1017,6 @@ function renderScoreData(measuresData) {
             melCells.push({ cellEl: cell, noteEls, startCol: seg.startCol, cols: seg.cols, note });
         });
 
-        // Fila armonía
         if(hasHarmony) {
             harSegs.forEach((seg, si) => {
                 const cell = document.createElement('div');
@@ -833,7 +1052,6 @@ let lastActiveMelCell = -1;
 let lastActiveHarCell = -1;
 
 function activateScoreNote(measureIdx, melCellIdx, harCellIdx) {
-    // Limpiar anterior
     if(lastActiveMeasure >= 0 && scoreMap[lastActiveMeasure]) {
         const prev = scoreMap[lastActiveMeasure];
         if(lastActiveMelCell >= 0 && prev.melCells[lastActiveMelCell]) {
@@ -856,14 +1074,12 @@ function activateScoreNote(measureIdx, melCellIdx, harCellIdx) {
     if(!scoreMap[measureIdx]) return;
     const mdata = scoreMap[measureIdx];
 
-    // Marcar filas past/current
     scoreMap.forEach((rd, ri) => {
         rd.wrapEl.classList.remove('row-current','row-past');
         if(ri < measureIdx) rd.wrapEl.classList.add('row-past');
         else if(ri === measureIdx) rd.wrapEl.classList.add('row-current');
     });
 
-    // Activar celda melodía
     if(melCellIdx >= 0 && mdata.melCells[melCellIdx]) {
         const c = mdata.melCells[melCellIdx];
         c.cellEl.classList.add('beat-active');
@@ -881,7 +1097,6 @@ function activateScoreNote(measureIdx, melCellIdx, harCellIdx) {
         });
     }
 
-    // Activar celda armonía
     if(harCellIdx >= 0 && mdata.harCells[harCellIdx]) {
         const c = mdata.harCells[harCellIdx];
         c.cellEl.classList.add('beat-active');
@@ -930,11 +1145,9 @@ function scheduleKaraokeVisual(note, start, measureIdx, melCellIdx, harCellIdx) 
     const color = NOTE_COLORS[cleanNoteName] || '#000000';
 
     const t = setTimeout(() => {
-        // Flash fondo
         const fl = document.getElementById('note-flash');
         if(fl) { fl.style.background = color; fl.style.opacity = '0.08'; setTimeout(()=>fl.style.opacity='0',80); }
 
-        // Barras PB
         const pb = document.getElementById(`pbbar-${cleanNoteName}`);
         if(pb) {
             pb.style.height='32px'; pb.style.background=color;
@@ -946,7 +1159,6 @@ function scheduleKaraokeVisual(note, start, measureIdx, melCellIdx, harCellIdx) 
             setTimeout(()=>{mv.style.height='3px';mv.style.background='rgba(0,0,0,0.15)';}, Math.max(100,note.duration*900));
         }
 
-        // Músico
         if(bandMode==='band'){
             const mid = getNoteMusician(cleanNoteName);
             [`pb-${mid}`,`me-${mid}`].forEach(id=>{
@@ -960,7 +1172,11 @@ function scheduleKaraokeVisual(note, start, measureIdx, melCellIdx, harCellIdx) 
             });
         }
 
-        // KARAOKE
+        // Pulso sobre imagen pixel art (si está activa)
+        if(customPixelCanvas && !note.isRest) {
+            pulsePixelImage(color);
+        }
+
         if(measureIdx !== null) {
             activateScoreNote(measureIdx, melCellIdx !== null ? melCellIdx : -1, harCellIdx !== null ? harCellIdx : -1);
         }
@@ -990,6 +1206,8 @@ function triggerPerc(time, type, beatInMeasure){
             burst('#000000',true);
             const fl=document.getElementById('note-flash');
             if(fl){fl.style.background='#000';fl.style.opacity='0.05';setTimeout(()=>fl.style.opacity='0',60);}
+            // Bombo: sacude imagen también
+            if(customPixelCanvas) pulsePixelImage('#222222');
         }
     }, delay);
     animTimeouts.push(t);
@@ -1107,9 +1325,12 @@ function playMusic(){
     buildPlaybackMusicians();
     buildBeatDots();
     initParticleCanvas();
+
+    // Mostrar imagen o músicos según haya imagen cargada
+    renderPlaybackPixelImage();
+
     lastActiveMeasure=-1; lastActiveMelCell=-1; lastActiveHarCell=-1;
 
-    // Parsear medidas
     const measureMelody=[], measureHarmony=[];
     rows.forEach(row=>{
         const[m,h]=row.value.split('|');
@@ -1117,31 +1338,22 @@ function playMusic(){
         measureHarmony.push(applyTies(tokenizePart(h||'')));
     });
 
-    // Construir y renderizar partitura con celdas colspan
     const scoreData = buildScoreData(measureMelody, measureHarmony);
     renderScoreData(scoreData);
 
-    // Programar audio + visuales
-    // Para cada compás: melodía con idx de celda, armonía sonando en paralelo
-    // También: para notas largas (ligadas), re-iluminar la misma celda en cada beat transcurrido
     let timeOffset = 0;
 
     measureMelody.forEach((mel, mi) => {
-        // Calcular tiempos de inicio de cada celda en el compás
         const melCells = scoreMap[mi] ? scoreMap[mi].melCells : [];
         const harCells = scoreMap[mi] ? scoreMap[mi].harCells : [];
 
-        let melTimeOff = timeOffset; // offset al inicio del compás
+        let melTimeOff = timeOffset;
         mel.forEach((note, ni) => {
-            const melCellIdx = ni; // cada nota = una celda
+            const melCellIdx = ni;
             const beatDur = 60/getBpm();
             const noteDur = note.duration;
             const noteBeats = note.beats;
 
-            // Encontrar celdas de armonía que solapan con este tiempo
-            // (harCells están indexadas por nota de armonía, no por tiempo;
-            //  buscamos cuál celda de armonía está activa al inicio de esta nota)
-            // Calculamos offset relativo dentro del compás
             let harCellIdx = -1;
             if(harCells.length > 0) {
                 const SUBS = scoreData[mi].SUBS;
@@ -1154,19 +1366,15 @@ function playMusic(){
                 }
             }
 
-            // Programar la nota (y su visual karaoke)
             playNote(note, now + melTimeOff, false, mi, melCellIdx, harCellIdx);
 
-            // Si la nota dura más de 1 beat, re-iluminar en beats subsiguientes
-            // (la celda ya ocupa esas columnas, solo re-flash)
             const extraBeats = Math.floor(noteBeats) - 1;
             for(let eb=1; eb<=extraBeats; eb++) {
                 const reTime = melTimeOff + eb * beatDur;
-                const rNote = note; // misma nota
+                const rNote = note;
                 const t2 = setTimeout(()=>{
                     if(!audioCtx) return;
                     activateScoreNote(mi, melCellIdx, harCellIdx);
-                    // mini flash de percusión
                     const rawName = rNote.isChord ? (rNote.notes[0]&&rNote.notes[0].name) : rNote.name;
                     const cn = rawName ? rawName.replace(/[0-9<>._\-]/g,'') : '';
                     const col = NOTE_COLORS[cn]||'#000';
@@ -1178,7 +1386,6 @@ function playMusic(){
             melTimeOff += noteDur;
         });
 
-        // Armonía: reproducir sonido en paralelo con melodía de este compás
         let harTimeOff = timeOffset;
         const har = measureHarmony[mi] || [];
         har.forEach(note => {
@@ -1192,12 +1399,10 @@ function playMusic(){
             harTimeOff += note.duration;
         });
 
-        // Avanzar offset global al final del compás (duración de la melodía del compás)
         const measureDur = mel.reduce((a,n)=>a+n.duration, 0);
         timeOffset += measureDur;
     });
 
-    // Percusión
     const tb = getTargetBeats();
     const measureCount = rows.length;
     const bd = 60/getBpm();
@@ -1270,34 +1475,23 @@ function exportToMidi(){
 function createMidiFile(title,bpm,ts,measureMelody,measureHarmony,includeHarmony,separateChannels){
     const ticksPerBeat=480;
     const quarterNoteDuration=60000000/bpm;
-    
-    // Parsear signature de tiempo
     const[tsNum,tsDen]=ts.split('/').map(Number);
     const beatType=4/tsDen;
-    
     let events=[];
     let currentTick=0;
-    
-    // Eventos de meta: título, tempo
     events.push({tick:0,type:'meta',data:{type:0x03,text:title}});
     events.push({tick:0,type:'meta',data:{type:0x51,tempo:Math.round(quarterNoteDuration)}});
     events.push({tick:0,type:'meta',data:{type:0x58,numerator:tsNum,denominator:tsDen}});
-    
-    // Canal 0: melodía, Canal 9: percusión, Canales 1+: armonía (si bandMode)
     const melodyChannel=0,harmonyStartChannel=1,drumChannel=9;
-    
     measureMelody.forEach((melody,mi)=>{
         const harmony=measureHarmony[mi]||[];
-        
         melody.forEach((note,ni)=>{
             const ticks=Math.round(note.beats*ticksPerBeat*beatType);
-            
             if(!note.isRest){
                 const midiNote=frequencyToMidi(note.freq);
                 events.push({tick:currentTick,type:'noteOn',channel:melodyChannel,note:midiNote,velocity:100});
                 events.push({tick:currentTick+ticks,type:'noteOff',channel:melodyChannel,note:midiNote});
             }
-            
             if(note.isChord&&note.notes){
                 note.notes.forEach(n=>{
                     const midiNote=frequencyToMidi(n.freq);
@@ -1305,23 +1499,18 @@ function createMidiFile(title,bpm,ts,measureMelody,measureHarmony,includeHarmony
                     events.push({tick:currentTick+ticks,type:'noteOff',channel:melodyChannel,note:midiNote});
                 });
             }
-            
             currentTick+=ticks;
         });
-        
-        // Armonía
         if(includeHarmony){
             let harmonyTick=currentTick-melody.reduce((a,n)=>a+Math.round(n.beats*ticksPerBeat*beatType),0);
             harmony.forEach((note,hi)=>{
                 const ticks=Math.round(note.beats*ticksPerBeat*beatType);
                 const harmonyChannel=separateChannels?Math.min(harmonyStartChannel+hi,15):melodyChannel;
-                
                 if(!note.isRest){
                     const midiNote=frequencyToMidi(note.freq);
                     events.push({tick:harmonyTick,type:'noteOn',channel:harmonyChannel,note:midiNote,velocity:70});
                     events.push({tick:harmonyTick+ticks,type:'noteOff',channel:harmonyChannel,note:midiNote});
                 }
-                
                 if(note.isChord&&note.notes){
                     note.notes.forEach(n=>{
                         const midiNote=frequencyToMidi(n.freq);
@@ -1329,29 +1518,21 @@ function createMidiFile(title,bpm,ts,measureMelody,measureHarmony,includeHarmony
                         events.push({tick:harmonyTick+ticks,type:'noteOff',channel:harmonyChannel,note:midiNote});
                     });
                 }
-                
                 harmonyTick+=ticks;
             });
         }
     });
-    
-    // Percusión
     const beatTicks=ticksPerBeat*beatType;
     const tb=tsNum;
     let percTick=0;
     const measureCount=measureMelody.length;
     for(let i=0;i<measureCount*tb;i++){
-        const kickNote=36;
-        const snareNote=38;
+        const kickNote=36,snareNote=38;
         events.push({tick:percTick,type:'noteOn',channel:drumChannel,note:i%tb===0?kickNote:snareNote,velocity:100});
         events.push({tick:percTick+Math.round(beatTicks*0.3),type:'noteOff',channel:drumChannel,note:i%tb===0?kickNote:snareNote});
         percTick+=beatTicks;
     }
-    
-    // Ordenar eventos
     events.sort((a,b)=>a.tick-b.tick);
-    
-    // Construir MIDI
     const tracks=[constructTrack(events)];
     return buildMidiFile(tracks,ticksPerBeat);
 }
@@ -1362,64 +1543,38 @@ function frequencyToMidi(freq){
 }
 
 function constructTrack(events){
-    let data=[];
-    let lastTick=0;
-    
+    let data=[];let lastTick=0;
     for(let evt of events){
         const delta=evt.tick-lastTick;
         data.push(...encodeVariableLength(delta));
-        
         if(evt.type==='meta'){
             data.push(0xFF,evt.data.type);
-            if(evt.data.type===0x03){
-                const text=evt.data.text;
-                data.push(text.length,...Array.from(text).map(c=>c.charCodeAt(0)));
-            } else if(evt.data.type===0x51){
-                data.push(3,(evt.data.tempo>>16)&0xFF,(evt.data.tempo>>8)&0xFF,evt.data.tempo&0xFF);
-            } else if(evt.data.type===0x58){
-                data.push(4,evt.data.numerator,Math.log2(evt.data.denominator),0x18,0x08);
-            }
-        } else if(evt.type==='noteOn'){
-            data.push(0x90|evt.channel,evt.note,evt.velocity);
-        } else if(evt.type==='noteOff'){
-            data.push(0x80|evt.channel,evt.note,0x40);
-        }
-        
+            if(evt.data.type===0x03){const text=evt.data.text;data.push(text.length,...Array.from(text).map(c=>c.charCodeAt(0)));}
+            else if(evt.data.type===0x51){data.push(3,(evt.data.tempo>>16)&0xFF,(evt.data.tempo>>8)&0xFF,evt.data.tempo&0xFF);}
+            else if(evt.data.type===0x58){data.push(4,evt.data.numerator,Math.log2(evt.data.denominator),0x18,0x08);}
+        } else if(evt.type==='noteOn'){data.push(0x90|evt.channel,evt.note,evt.velocity);}
+        else if(evt.type==='noteOff'){data.push(0x80|evt.channel,evt.note,0x40);}
         lastTick=evt.tick;
     }
-    
     data.push(0x00,0xFF,0x2F,0x00);
     return data;
 }
 
 function encodeVariableLength(val){
-    let bytes=[val&0x7F];
-    val>>=7;
-    while(val){
-        bytes.unshift((val&0x7F)|0x80);
-        val>>=7;
-    }
+    let bytes=[val&0x7F];val>>=7;
+    while(val){bytes.unshift((val&0x7F)|0x80);val>>=7;}
     return bytes;
 }
 
 function buildMidiFile(tracks,ticksPerBeat){
     const data=[];
-    
-    // Header
-    const header=[0x4D,0x54,0x68,0x64];
-    const headerLength=6;
-    const format=0;
-    const trackCount=tracks.length;
+    const header=[0x4D,0x54,0x68,0x64];const headerLength=6;const format=0;const trackCount=tracks.length;
     data.push(...header,0,0,0,headerLength,0,format,0,trackCount,(ticksPerBeat>>8)&0xFF,ticksPerBeat&0xFF);
-    
-    // Tracks
     for(let track of tracks){
-        const trackHeader=[0x4D,0x54,0x72,0x6B];
-        const trackLength=track.length;
+        const trackHeader=[0x4D,0x54,0x72,0x6B];const trackLength=track.length;
         data.push(...trackHeader,(trackLength>>24)&0xFF,(trackLength>>16)&0xFF,(trackLength>>8)&0xFF,trackLength&0xFF);
         data.push(...track);
     }
-    
     return new Uint8Array(data);
 }
 
