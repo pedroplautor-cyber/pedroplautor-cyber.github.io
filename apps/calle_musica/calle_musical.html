@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secuenciador Musical Callejero</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --panel-color: #2d2d2d;
+            --accent-color: #00ffcc;
+            --pulse-color: #ff0055;
+            --text-color: #ffffff;
+            --stage-height: 180px;
+            --musician-w: 65px;
+            --musician-h: 85px;
+        }
+
+        body {
+            margin: 0;
+            padding: 15px;
+            background-color: var(--bg-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-sizing: border-box;
+        }
+
+        h1 { 
+            margin: 10px 0 5px 0; 
+            font-size: 1.8rem;
+            color: var(--accent-color); 
+            text-shadow: 0 0 10px rgba(0, 255, 204, 0.3);
+            text-align: center;
+        }
+
+        /* Contenedor dinámico para el título cargado de la melodía */
+        #melody-title {
+            margin: 0 0 15px 0;
+            font-size: 1.3rem;
+            color: var(--text-color);
+            font-style: italic;
+            text-align: center;
+            min-height: 1.5rem;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: var(--panel-color);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            box-sizing: border-box;
+        }
+
+        /* --- Zona de Edición --- */
+        .editor-section {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 100px;
+            background: #111;
+            color: #fff;
+            border: 1px solid #444;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 16px;
+            border-radius: 4px;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+        }
+
+        button {
+            flex: 1;
+            background: var(--accent-color);
+            color: #000;
+            border: none;
+            padding: 14px 20px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: transform 0.1s, opacity 0.2s;
+        }
+
+        button:active { transform: scale(0.96); }
+        button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* --- Escenario de Animación --- */
+        .stage-container {
+            position: relative;
+            width: 100%;
+            height: var(--stage-height);
+            overflow: hidden;
+            border-radius: 8px;
+            border: 2px solid #444;
+            margin-bottom: 20px;
+            background-color: #ffffff; /* Fondo blanco debajo de la calle para evitar que quede apagada */
+        }
+
+        /* Fondo infinito con opacidad del 50% */
+        .background-street {
+            position: absolute;
+            width: 200%;
+            height: 100%;
+            background-image: url('calle-fondo.png'); 
+            background-size: 50% 100%;
+            background-repeat: repeat-x;
+            left: 0;
+            top: 0;
+            opacity: 0.5;
+            z-index: 1;
+        }
+
+        @keyframes walkBackground {
+            from { transform: translateX(0); }
+            to { transform: translateX(-50%); }
+        }
+
+        .stage-container.playing .background-street {
+            animation: walkBackground 10s linear infinite;
+        }
+
+        /* CONTENEDOR DE LA BANDA */
+        .band-group {
+            position: absolute;
+            bottom: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: flex-end;
+            gap: 10px; 
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .musician {
+            width: var(--musician-w);  
+            height: var(--musician-h); 
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: bottom;
+            transition: transform 0.1s ease;
+        }
+
+        /* Músicos de Pulso */
+        .pulse-player {
+            background-image: url('musico-pulso2.png');
+        }
+
+        /* Músicos de Melodía */
+        .melody-player {
+            background-image: url('musico-melodia2.png');
+        }
+
+        /* Animación rítmica coordinada en bloque */
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-12px); }
+        }
+        
+        .stage-container.playing .musician {
+            animation: bounce 0.4s ease infinite;
+        }
+
+        /* Animación de salto extra cuando suena su nota asignada */
+        @keyframes individualJump {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-35px) scale(1.05); } /* Salta notablemente más alto */
+        }
+
+        /* Sobrescribe la animación por defecto temporalmente mediante JS */
+        .musician.jump {
+            animation: individualJump 0.3s ease-out !important;
+        }
+
+        /* --- Karaoke --- */
+        .karaoke-container {
+            background: #111;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            white-space: nowrap;
+            border: 1px solid #333;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .karaoke-track {
+            display: inline-block;
+            font-family: monospace;
+            font-size: 20px;
+            letter-spacing: 1px;
+        }
+
+        .note-span {
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background 0.1s, color 0.1s;
+            display: inline-block;
+        }
+
+        .note-span.active {
+            background: var(--accent-color);
+            color: #000;
+            font-weight: bold;
+            transform: scale(1.1);
+        }
+
+        /* --- VISTA ADAPTATIVA PARA MÓVILES --- */
+        @media (max-width: 600px) {
+            :root {
+                --stage-height: 130px;
+                --musician-w: 25px;
+                --musician-h: 45px;
+            }
+            body {
+                padding: 8px;
+            }
+            h1 {
+                font-size: 1.4rem;
+                margin: 5px 0 5px 0;
+            }
+            #melody-title {
+                font-size: 1.1rem;
+                margin: 0 0 10px 0;
+            }
+            .container {
+                padding: 12px;
+            }
+            textarea {
+                font-size: 14px;
+                height: 85px;
+            }
+            button {
+                padding: 16px 10px;
+                font-size: 1rem;
+            }
+            .band-group {
+                bottom: 10px;
+                gap: 2px; 
+            }
+            .karaoke-track {
+                font-size: 16px;
+            }
+            @keyframes individualJump {
+                0%, 100% { transform: translateY(0); }
+                50% { transform: translateY(-20px); }
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Calle Musical</h1>
+    <!-- Elemento para albergar el título de la melodía actual -->
+    <h2 id="melody-title"></h2>
+    
+    <div class="container">
+        <!-- Editor de Melodía -->
+        <div class="editor-section">
+            <label for="melody-input"><strong>Introduce tu partitura:</strong></label>
+            <textarea id="melody-input" spellcheck="false">Nueva yol|BPM:140|TS:4/4
+Re8 re8 re8 re8 fa8 sol8 la4
+_1
+La8 la8 la8 la8 la#8 sol8 la4
+_1
+Mi8 mi8 mi8 mi8 fa8 re8 mi4
+Do8 do8 do8 do8 <si8 mi8 <la4</textarea>
+            <div class="controls">
+                <button id="btn-load">💾 Cargar</button>
+                <button id="btn-play">▶ Play</button>
+                <button id="btn-stop" disabled>■ Stop</button>
+            </div>
+        </div>
+
+        <!-- Escenario Visual -->
+        <div id="stage" class="stage-container">
+            <div class="background-street"></div>
+            <!-- Banda: 2 Pulsos y 7 Melodías (Cada uno con un 'data-note' asignado) -->
+            <div class="band-group">
+                <div class="musician pulse-player" title="Pulso 1"></div>
+                <div class="musician pulse-player" title="Pulso 2"></div>
+                <div class="musician melody-player" data-note="DO" title="Melodía - DO"></div>
+                <div class="musician melody-player" data-note="RE" title="Melodía - RE"></div>
+                <div class="musician melody-player" data-note="MI" title="Melodía - MI"></div>
+                <div class="musician melody-player" data-note="FA" title="Melodía - FA"></div>
+                <div class="musician melody-player" data-note="SOL" title="Melodía - SOL"></div>
+                <div class="musician melody-player" data-note="LA" title="Melodía - LA"></div>
+                <div class="musician melody-player" data-note="SI" title="Melodía - SI"></div>
+            </div>
+        </div>
+
+        <!-- Panel de Karaoke -->
+        <div class="karaoke-container">
+            <div id="karaoke-track" class="karaoke-track"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURACIÓN DE AUDIO ---
+        const NOTE_FREQ = {
+            'DO': 261.63, 'DO#': 277.18, 'RE': 293.66, 'RE#': 311.13,
+            'MI': 329.63, 'FA': 349.23, 'FA#': 369.99, 'SOL': 392.00,
+            'SOL#': 415.30, 'LA': 440.00, 'LA#': 466.16, 'SI': 493.88, '_': 0
+        };
+
+        let currentBPM = 120;
+        let beatDuration = 60 / currentBPM; 
+
+        let audioCtx = null;
+        let playTimeout = null;
+        let isPlaying = false;
+        let parsedMelody = [];
+
+        const btnLoad = document.getElementById('btn-load');
+        const btnPlay = document.getElementById('btn-play');
+        const btnStop = document.getElementById('btn-stop');
+        const stage = document.getElementById('stage');
+        const karaokeTrack = document.getElementById('karaoke-track');
+        const melodyInput = document.getElementById('melody-input');
+        const melodyTitleDisplay = document.getElementById('melody-title');
+
+        String.prototype.resetTokenSpace = function() { return this.replace(/[\r\n]+/g, ' '); };
+
+        // --- MANEJO DE METADATOS Y CARGA ---
+        function procesarMetadatosYLimpiar(texto) {
+            const lineas = texto.split('\n');
+            let textoLimpio = "";
+            
+            // Valores por defecto
+            let titulo = "Melodía Sin Título";
+            currentBPM = 120;
+
+            lineas.forEach(linea => {
+                if (linea.includes("Partitura:") || linea.includes("BPM:")) {
+                    // Extraer título si existe
+                    const tituloMatch = linea.match(/\s*([^|]+)/i);
+                    if (tituloMatch) titulo = tituloMatch[1].trim();
+
+                    // Extraer BPM si existe
+                    const bpmMatch = linea.match(/BPM:\s*(\d+)/i);
+                    if (bpmMatch) currentBPM = parseInt(bpmMatch[1]);
+                } else {
+                    textoLimpio += linea + " ";
+                }
+            });
+
+            // Actualizar la duración del pulso según el BPM extraído
+            beatDuration = 60 / currentBPM;
+
+            // Renderizar título en el DOM
+            melodyTitleDisplay.textContent = titulo;
+
+            return textoLimpio;
+        }
+
+        // --- PARSER ---
+        function parseMelodia(texto) {
+            // Primero aislamos y procesamos las cabeceras/metadatos de la partitura
+            const textoNotas = procesarMetadatosYLimpiar(texto);
+
+            const tokens = textoNotas.replace(/\|/g, ' ').resetTokenSpace().trim().split(/\s+/);
+            let notasParseadas = [];
+            const notaRegex = /(?<octavaMod>[<>]*)(?<nombre>DO#|RE#|FA#|SOL#|LA#|DO|RE|MI|FA|SOL|LA|SI|_)(?<duracion>\d*)(?<puntillo>\.?)/i;
+
+            for (let token of tokens) {
+                if (!token) continue;
+
+                if (token.startsWith('[')) {
+                    const finAcorde = token.indexOf(']');
+                    const notasStr = token.substring(1, finAcorde);
+                    const resto = token.substring(finAcorde + 1);
+                    const durMatch = resto.match(/(\d*)(\.?)/);
+                    
+                    const durBase = durMatch[1] || '4';
+                    const tienePuntillo = durMatch[2] === '.';
+                    const notasAnidadas = notasStr.split(/(?=[A-Za-z_])/);
+                    let subNotas = [];
+                    
+                    notasAnidadas.forEach(n => {
+                        const m = n.match(notaRegex);
+                        if(m) subNotas.push({ nombre: m.groups.nombre.toUpperCase(), octavaShift: calcularOctavaShift(m.groups.octavaMod) });
+                    });
+
+                    notasParseadas.push({
+                        tipo: 'acorde',
+                        notas: subNotas,
+                        duracion: calcularDuracion(durBase, tienePuntillo),
+                        textoOriginal: token
+                    });
+                    continue;
+                }
+
+                if (token.startsWith('(')) {
+                    const finTresillo = token.indexOf(')');
+                    const notasStr = token.substring(1, finTresillo);
+                    const resto = token.substring(finTresillo + 1);
+                    const durBase = resto.match(/\d+/)?.[0] || '4';
+                    const notasAnidadas = notasStr.split(/(?=[A-Za-z_])/);
+                    const duracionIndividual = (calcularDuracion(durBase, false) * 2) / 3;
+
+                    notasAnidadas.forEach(n => {
+                        const m = n.match(notaRegex);
+                        if (m) {
+                            notasParseadas.push({
+                                tipo: 'nota',
+                                nombre: m.groups.nombre.toUpperCase(),
+                                octavaShift: calcularOctavaShift(m.groups.octavaMod),
+                                duracion: duracionIndividual,
+                                textoOriginal: m.groups.octavaMod + m.groups.nombre
+                            });
+                        }
+                    });
+                    continue;
+                }
+
+                const match = token.match(notaRegex);
+                if (match) {
+                    const { octavaMod, nombre, duracion, puntillo } = match.groups;
+                    const durBase = duracion || '4';
+                    const tienePuntillo = puntillo === '.';
+
+                    notasParseadas.push({
+                        tipo: 'nota',
+                        nombre: nombre.toUpperCase(),
+                        octavaShift: calcularOctavaShift(octavaMod),
+                        duracion: calcularDuracion(durBase, tienePuntillo),
+                        textoOriginal: token
+                    });
+                }
+            }
+            return notasParseadas;
+        }
+
+        function calcularOctavaShift(mod) {
+            if (!mod) return 0;
+            return (mod.match(/>/g) || []).length - (mod.match(/</g) || []).length;
+        }
+
+        function calcularDuracion(figura, tienePuntillo) {
+            let tiempos = 4 / parseInt(figura);
+            if (tienePuntillo) tiempos *= 1.5;
+            return tiempos * beatDuration; 
+        }
+
+        // --- SINTETIZADOR DE MELODÍA ---
+        function playTone(frecuencias, duracion, tiempoInicio) {
+            if (frecuencias.length === 0 || frecuencias[0] === 0) return;
+
+            frecuencias.forEach(freq => {
+                const osc = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+
+                osc.type = 'triangle'; 
+                osc.frequency.setValueAtTime(freq, tiempoInicio);
+
+                gainNode.gain.setValueAtTime(0.12, tiempoInicio);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, tiempoInicio + duracion - 0.02);
+
+                osc.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                osc.start(tiempoInicio);
+                osc.stop(tiempoInicio + duracion);
+            });
+        }
+
+        // --- SINTETIZADOR DE PULSO / METRÓNOMO ---
+        function playMetronomo(tiempoInicio, duracionTotal) {
+            let tiempoAcumulado = 0;
+            while (tiempoAcumulado < duracionTotal) {
+                const osc = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+
+                osc.type = 'triangle'; 
+                osc.frequency.setValueAtTime(180, tiempoInicio + tiempoAcumulado);
+
+                gainNode.gain.setValueAtTime(0.25, tiempoInicio + tiempoAcumulado);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, tiempoInicio + tiempoAcumulado + 0.08);
+
+                osc.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                osc.start(tiempoInicio + tiempoAcumulado);
+                osc.stop(tiempoInicio + tiempoAcumulado + 0.1);
+
+                tiempoAcumulado += beatDuration;
+            }
+        }
+
+        // --- KARAOKE ---
+        function renderKaraoke(melodia) {
+            karaokeTrack.innerHTML = '';
+            melodia.forEach((item, index) => {
+                const span = document.createElement('span');
+                span.className = 'note-span';
+                span.id = `note-${index}`;
+                span.textContent = item.textoOriginal;
+                karaokeTrack.appendChild(span);
+            });
+        }
+
+        // --- REPRODUCCIÓN ANIMADA ---
+        function hacerSaltarMusico(nombreNota) {
+            // Limpiamos los sostenidos para mapear la nota base (ej: RE# mapea a músico de RE)
+            const notaBase = nombreNota.replace('#', '');
+            const musico = document.querySelector(`.melody-player[data-note="${notaBase}"]`);
+            if (musico) {
+                // Forzamos el reinicio de la animación de salto quitando y poniendo la clase
+                musico.classList.remove('jump');
+                void musico.offsetWidth; 
+                musico.classList.add('jump');
+                
+                // Quitamos la clase al terminar el salto
+                setTimeout(() => {
+                    musico.classList.remove('jump');
+                }, 300);
+            }
+        }
+
+        function iniciarReproduccion() {
+            if (isPlaying) return;
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            parsedMelody = parseMelodia(melodyInput.value);
+            if (parsedMelody.length === 0) return;
+
+            isPlaying = true;
+            btnPlay.disabled = true;
+            btnLoad.disabled = true;
+            btnStop.disabled = false;
+            stage.classList.add('playing');
+            renderKaraoke(parsedMelody);
+
+            const tiempoBase = audioCtx.currentTime + 0.1; 
+            let tiempoActualAudio = tiempoBase;
+            let tiempoActualMS = 0;
+
+            parsedMelody.forEach(item => {
+                let freqs = [];
+                if (item.tipo === 'nota') {
+                    let f = NOTE_FREQ[item.nombre];
+                    if (f > 0) f = f * Math.pow(2, item.octavaShift);
+                    freqs.push(f);
+                } else if (item.tipo === 'acorde') {
+                    item.notas.forEach(n => {
+                        let f = NOTE_FREQ[n.nombre];
+                        if (f > 0) f = f * Math.pow(2, n.octavaShift);
+                        freqs.push(f);
+                    });
+                }
+                
+                playTone(freqs, item.duracion, tiempoActualAudio);
+                tiempoActualAudio += item.duracion;
+            });
+
+            const duracionTotal = tiempoActualAudio - tiempoBase;
+            playMetronomo(tiempoBase, duracionTotal);
+
+            function programarPVisual(index, retraso) {
+                playTimeout = setTimeout(() => {
+                    if (!isPlaying) return;
+
+                    document.querySelectorAll('.note-span').forEach(s => s.classList.remove('active'));
+                    
+                    const currentItem = parsedMelody[index];
+                    const currentSpan = document.getElementById(`note-${index}`);
+                    
+                    if (currentSpan) {
+                        currentSpan.classList.add('active');
+                        currentSpan.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                    }
+
+                    // Detonador de los saltos de los músicos según la nota activa
+                    if (currentItem.tipo === 'nota') {
+                        hacerSaltarMusico(currentItem.nombre);
+                    } else if (currentItem.tipo === 'acorde') {
+                        currentItem.notas.forEach(n => hacerSaltarMusico(n.nombre));
+                    }
+
+                    if (index === parsedMelody.length - 1) {
+                        setTimeout(detenerReproduccion, parsedMelody[index].duracion * 1000);
+                    }
+
+                }, retraso);
+            }
+
+            parsedMelody.forEach((item, index) => {
+                programarPVisual(index, tiempoActualMS);
+                tiempoActualMS += item.duracion * 1000;
+            });
+        }
+
+        function detenerReproduccion() {
+            isPlaying = false;
+            btnPlay.disabled = false;
+            btnLoad.disabled = false;
+            btnStop.disabled = true;
+            stage.classList.remove('playing');
+            clearTimeout(playTimeout);
+            document.querySelectorAll('.note-span').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.musician').forEach(m => m.classList.remove('jump'));
+            
+            if (audioCtx) {
+                audioCtx.close().then(() => {
+                    audioCtx = null;
+                });
+            }
+        }
+
+        function ejecutarCargaManual() {
+            // Solo procesa los metadatos y dibuja los cambios sin reproducir sonido
+            procesarMetadatosYLimpiar(melodyInput.value);
+            const vistaPreviaMelodia = parseMelodia(melodyInput.value);
+            renderKaraoke(vistaPreviaMelodia);
+        }
+
+        // Eventos
+        btnPlay.addEventListener('click', iniciarReproduccion);
+        btnStop.addEventListener('click', detenerReproduccion);
+        btnLoad.addEventListener('click', ejecutarCargaManual);
+
+        // Carga automática inicial del título e información al cargar la app
+        ejecutarCargaManual();
+    </script>
+</body>
+</html>
